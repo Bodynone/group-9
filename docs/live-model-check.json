@@ -1,0 +1,6 @@
+{
+  "check": "live_model_tool_call",
+  "model": "Qwen/Qwen3.8-Flash-Next",
+  "status": "passed",
+  "tool_requested": true
+}

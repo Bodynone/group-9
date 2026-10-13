@@ -1,0 +1,58 @@
+{
+  "rubric_version": "af-2026-10-09-v1",
+  "human_approval": "pending",
+  "source": "9_1_v2.pdf, S1 p6-7 and rubric p12",
+  "note": "Proposed fixed-fixture results, not a real model benchmark or the source worksheet grade. Never append to model input.",
+  "S1": {
+    "input_version": "d5cd106f91b823d6ac639878f287d8bb4319d2a44eb7fa0d2866edc5e839f3ed",
+    "levels": {
+      "A": 100,
+      "B": 100,
+      "C": 100,
+      "D": 100,
+      "E": 100,
+      "F": 100
+    },
+    "scores": {
+      "A": 15,
+      "B": 20,
+      "C": 30,
+      "D": 15,
+      "E": 10,
+      "F": 10
+    },
+    "total": 100
+  },
+  "S2": {
+    "input_version": "6efabdc2b8c0e26053b174f2cd5980e5bff44ecdd8155a08868516ff20fa7d71",
+    "levels": {
+      "A": 100,
+      "B": 100,
+      "C": 0,
+      "D": 100,
+      "E": 100,
+      "F": 100
+    },
+    "scores": {
+      "A": 15,
+      "B": 20,
+      "C": 0,
+      "D": 15,
+      "E": 10,
+      "F": 10
+    },
+    "total": 70
+  },
+  "scenarios": {
+    "T1": "S1",
+    "T2": "S2",
+    "T3a": "S1 with locate tool 503, then retry normally",
+    "T3b": "S1 with B evidence replaced on initial validation only",
+    "T3c": "S1 with B evidence replaced on every validation"
+  },
+  "injected_quote": "【不存在的证据 QX-001】",
+  "repeats_per_scenario": 3,
+  "required_passes": 15,
+  "max_repair_rounds": 2,
+  "max_validations": 3
+}

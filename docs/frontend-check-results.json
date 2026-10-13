@@ -1,0 +1,46 @@
+{
+  "verified_at": "2026-10-13T12:08:39.802084+00:00",
+  "frontend": "Next.js 16.4.0",
+  "controlled_browser_provider": true,
+  "real_model_results": "See acceptance-record.md; browser tests do not call the external model.",
+  "checks": {
+    "eslint": {
+      "command": "node node_modules/eslint/bin/eslint.js .",
+      "exit_code": 0
+    },
+    "typescript": {
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "exit_code": 0
+    },
+    "production_build": {
+      "command": "NEXT_DIST_DIR=.next-e2e BACKEND_URL=http://127.0.0.1:8001 node node_modules/next/dist/bin/next build",
+      "exit_code": 0
+    },
+    "browser_acceptance": {
+      "command": "E2E_BASE_URL=http://127.0.0.1:3001 node tests/e2e.mjs",
+      "exit_code": 0,
+      "successful_repeats": 2,
+      "scenarios": [
+        "exact evidence selection",
+        "teacher A=70 gives A10.5 and total95.5",
+        "six reviews before confirmation",
+        "confirmed JSON download matches",
+        "reload resumes saved task",
+        "changed source invalidates old result",
+        "failed source retained and retry succeeds",
+        "persistent failure allows complete manual grading",
+        "desktop and mobile have no horizontal overflow",
+        "no browser runtime errors"
+      ]
+    },
+    "production_build_default": {
+      "command": "NEXT_DIST_DIR=.next BACKEND_URL=http://127.0.0.1:8000 node node_modules/next/dist/bin/next build",
+      "exit_code": 0
+    }
+  },
+  "evidence": [
+    "frontend/test-results/desktop-confirmed.png",
+    "frontend/test-results/mobile-review.png",
+    "frontend/test-results/confirmed-record.json"
+  ]
+}
