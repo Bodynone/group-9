@@ -6,6 +6,17 @@ import httpx
 
 from .config import Settings
 
+# 标准计价常量（元/千 token）：对齐 SenseNova deepseek-v4-flash 公开价，集中于此便于调价（WBS 4.3）
+PROMPT_PRICE_CNY_PER_1K = 0.002
+COMPLETION_PRICE_CNY_PER_1K = 0.008
+
+
+def usage_cost(usage: dict) -> float:
+    """按标准价格折算一次调用的物理成本（元），保留 6 位小数。"""
+    prompt = usage.get("prompt_tokens") or 0
+    completion = usage.get("completion_tokens") or 0
+    return round(prompt * PROMPT_PRICE_CNY_PER_1K / 1000 + completion * COMPLETION_PRICE_CNY_PER_1K / 1000, 6)
+
 
 class ModelError(Exception):
     def __init__(self, code: str, message: str):
@@ -55,6 +66,10 @@ class ChatProvider:
             message = choice["message"]
             if not isinstance(message, dict):
                 raise ValueError("invalid assistant message")
+            usage = body.get("usage")
+            if isinstance(usage, dict):
+                # 仅当上游返回 usage 时透传；无 usage 时返回形状与既有契约完全一致
+                message["usage"] = usage
             return message
         except ModelError:
             raise

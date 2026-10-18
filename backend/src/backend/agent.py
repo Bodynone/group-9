@@ -3,7 +3,7 @@ import json
 
 from .config import Settings
 from .guardrails import SecurityGuardrails
-from .provider import ModelError
+from .provider import ModelError, usage_cost
 from .rubric import IDS, VERSION
 from .storage import Store
 from .tools import Toolbox, ToolError, tool_schemas
@@ -97,6 +97,15 @@ class AgentRunner:
             response = await self.provider.complete(messages, schemas)
             if not isinstance(response, dict):
                 raise ModelError("model_invalid_response", "模型响应结构不合法。")
+            usage = response.pop("usage", None)
+            if isinstance(usage, dict) and type(usage.get("prompt_tokens")) is int and type(usage.get("completion_tokens")) is int:
+                total = usage.get("total_tokens")
+                self.store.append_event(task_id, "model_usage", details={
+                    "prompt_tokens": usage["prompt_tokens"],
+                    "completion_tokens": usage["completion_tokens"],
+                    "total_tokens": total if type(total) is int else usage["prompt_tokens"] + usage["completion_tokens"],
+                    "cost_cny": usage_cost(usage),
+                })
             calls = response.get("tool_calls") or []
             if not isinstance(calls, list) or not calls:
                 raise ModelError("missing_tool_calls", "模型未完成必需工具调用与校验，请重试或人工批改。")
