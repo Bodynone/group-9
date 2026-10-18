@@ -58,6 +58,8 @@ try {
   await page.goto(url);
   await page.locator(".rubric-list details").last().waitFor();
   assert.equal(await page.locator(".rubric-list details").count(), 6);
+  assert.match(await page.locator(".rubric-footer").textContent(), /2026-v1/);
+  for (const index of [1, 2]) assert.equal(await page.locator(".rubric-list details").nth(index).locator("strong").textContent(), "25 分");
   await assertNoOverflow(page, "desktop empty");
 
   // Normal generation, evidence, an exact half-point change, confirmation and export.
@@ -147,6 +149,66 @@ try {
   await waitForTotal(page, 100);
   assert.equal(await page.locator("#assignment").inputValue(), failedSource);
   console.log("PASS persistent failure and complete six-dimension manual confirmation");
+
+  // Historical snapshots are fixtures because the API only creates the current rubric.
+  const historyContext = await browser.newContext({ viewport: { width: 1440, height: 1100 }, locale: "zh-CN" });
+  const historyPage = await historyContext.newPage();
+  historyPage.setDefaultTimeout(15_000);
+  historyPage.on("pageerror", (error) => errors.push(error.message));
+  const historicalBase = structuredClone(exported.task);
+  historicalBase.id = "history-fixture";
+  historicalBase.rubric_version = "af-2026-10-09-v1";
+  for (const data of [historicalBase.draft, historicalBase.review]) {
+    if (data) {
+      data.dimensions.find((item) => item.id === "B").score = 20;
+      data.dimensions.find((item) => item.id === "C").score = 30;
+    }
+  }
+  if (historicalBase.draft) historicalBase.draft.rubric_version = historicalBase.rubric_version;
+  let historicalFixture = historicalBase;
+  let historicalReads = 0;
+  const historicalWrites = [];
+  await historyPage.route(/\/api\/tasks\/history-fixture(?:\/retry)?$/, async (route) => {
+    const incoming = route.request();
+    if (incoming.method() === "GET") {
+      historicalReads += 1;
+      await route.fulfill({ json: historicalFixture });
+    } else {
+      historicalWrites.push({ method: incoming.method(), path: new URL(incoming.url()).pathname });
+      await route.fulfill({ status: 202, json: { ...exported.task, id: "regenerated-fixture", parent_id: historicalBase.id, status: "pending_review", record_id: null, review: null } });
+    }
+  });
+  await historyPage.goto(url);
+  await historyPage.locator(".rubric-list details").last().waitFor();
+  for (const status of ["pending_review", "queued", "running", "confirmed", "failed"]) {
+    historicalFixture = { ...historicalBase, status, record_id: status === "confirmed" ? historicalBase.record_id : null,
+      error: status === "failed" ? { code: "historical_failure", message: "历史任务失败" } : null };
+    await historyPage.evaluate((id) => localStorage.setItem("yuejian.latest-task", id), historicalBase.id);
+    historicalReads = 0;
+    await historyPage.reload();
+    await historyPage.locator(".historical-task").waitFor();
+    assert.equal(await historyPage.locator(".dimension-score span").count(), 0, "history must not show new dimension maxima");
+    assert.equal(await historyPage.getByRole("button", { name: "保存复核", exact: true }).count(), 0);
+    assert.equal(await historyPage.getByRole("button", { name: "进入人工批改", exact: true }).count(), 0);
+    for (const field of await historyPage.locator(".review-fields select, .review-fields textarea, .review-checkbox input").all()) assert.ok(await field.isDisabled());
+    if (status === "confirmed") {
+      assert.equal(await historyPage.getByRole("link", { name: "导出 JSON 记录", exact: true }).getAttribute("href"), "/api/tasks/history-fixture/export");
+    } else {
+      assert.ok(await historyPage.getByRole("button", { name: "按当前量表重新生成", exact: true }).isEnabled());
+    }
+    if (status === "queued" || status === "running") {
+      await historyPage.waitForTimeout(1200);
+      assert.equal(historicalReads, 1, "historical running tasks must not be polled");
+      assert.equal(await historyPage.locator(".run-progress").count(), 0);
+    }
+  }
+  await historyPage.getByRole("button", { name: "按当前量表重新生成", exact: true }).click();
+  await historyPage.locator(".dimension-score span").first().waitFor();
+  assert.deepEqual(historicalWrites, [{ method: "POST", path: "/api/tasks/history-fixture/retry" }]);
+  assert.equal(await historyPage.locator(".historical-task").count(), 0);
+  assert.ok(await historyPage.locator("#level-B").isEnabled());
+  await historyContext.close();
+  console.log("PASS historical tasks are read-only, running history does not poll, retry uses the current rubric, and archived JSON stays available");
 
   // Check small-screen layout with real populated result cards, not only an empty shell.
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: "zh-CN" });

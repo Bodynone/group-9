@@ -7,7 +7,7 @@ from .rubric import VERSION
 
 class CreateTask(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    text: str = Field(min_length=1)
+    text: str = Field(min_length=1, max_length=50_000)
     rubric_version: str = VERSION
 
     @field_validator("text")
@@ -15,6 +15,33 @@ class CreateTask(BaseModel):
     def nonblank(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("请粘贴非空的匿名作业文本")
+        return value
+
+
+class BatchFile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    filename: str = Field(min_length=1)
+    text: str = Field(min_length=1, max_length=50_000)
+
+    @field_validator("filename", "text")
+    @classmethod
+    def nonblank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("文件名与作业正文不能为空")
+        return value
+
+
+class CreateBatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1)
+    files: list[BatchFile] = Field(min_length=1)
+    rubric_version: str = VERSION
+
+    @field_validator("name")
+    @classmethod
+    def nonblank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("请填写批次名称")
         return value
 
 

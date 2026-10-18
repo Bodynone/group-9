@@ -48,6 +48,7 @@ export function GradingWorkspace() {
   const [focusedEvidence, setFocusedEvidence] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const generationRef = useRef(0);
+  const historical = !!task && !!rubric && task.rubric_version !== rubric.version;
 
   const receiveTask = useCallback((next: Task) => {
     setTask(next);
@@ -87,7 +88,7 @@ export function GradingWorkspace() {
   }, [loadRubric, receiveTask]);
 
   useEffect(() => {
-    if (!task || (task.status !== "queued" && task.status !== "running")) return;
+    if (!task || !rubric || historical || (task.status !== "queued" && task.status !== "running")) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
     const generation = generationRef.current;
@@ -107,7 +108,7 @@ export function GradingWorkspace() {
     }
     timer = setTimeout(poll, 1000);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [task?.id, task?.status, receiveTask, task]);
+  }, [task?.id, task?.status, receiveTask, task, rubric, historical]);
 
   function changeText(value: string) {
     generationRef.current += 1;
@@ -124,6 +125,10 @@ export function GradingWorkspace() {
 
   async function startTask() {
     if (!rubric || !text.trim()) return;
+    if (historical && task?.status !== "confirmed") {
+      await taskAction("retry");
+      return;
+    }
     const generation = ++generationRef.current;
     setBusy("生成");
     setNotice(null);
@@ -139,7 +144,7 @@ export function GradingWorkspace() {
   }
 
   async function taskAction(action: "retry" | "manual") {
-    if (!task) return;
+    if (!task || !rubric || (historical && action === "manual")) return;
     const generation = ++generationRef.current;
     setBusy(action);
     setNotice(null);
@@ -152,6 +157,7 @@ export function GradingWorkspace() {
   }
 
   function editReview(id: DimensionId, change: Partial<ReviewDimension>) {
+    if (!editable) return;
     setReview((current) => current.map((dimension) => dimension.id === id
       ? { ...dimension, ...change, ...(change.level !== undefined || change.reason !== undefined ? { reviewed: false, score: null } : {}) }
       : dimension));
@@ -160,7 +166,7 @@ export function GradingWorkspace() {
   }
 
   async function saveReview(confirm = false) {
-    if (!task) return;
+    if (!task || !rubric || historical) return;
     const generation = ++generationRef.current;
     setBusy(confirm ? "confirm" : "review");
     setNotice(null);
@@ -192,8 +198,8 @@ export function GradingWorkspace() {
     setFocusedEvidence(`已定位第 ${evidence.paragraph} 段：“${evidence.quote}”`);
   }
 
-  const running = task?.status === "queued" || task?.status === "running";
-  const editable = task?.status === "pending_review" && !busy;
+  const running = !historical && (task?.status === "queued" || task?.status === "running");
+  const editable = !!rubric && !historical && task?.status === "pending_review" && !busy;
   const complete = review.length === 6 && review.every((dimension) => dimension.level !== null && dimension.reason.trim());
   const reviewedCount = review.filter((dimension) => dimension.reviewed).length;
   const readyToConfirm = complete && reviewedCount === 6;
@@ -229,7 +235,7 @@ export function GradingWorkspace() {
               {focusedEvidence && <p className="evidence-location" role="status"><LocateFixed size={15} />{focusedEvidence}</p>}
               <Button className="primary-action" size="lg" onClick={() => void startTask()} disabled={!rubric || !text.trim() || !!busy || running || restoring}>
                 {busy === "生成" || running ? <LoaderCircle className="spinning" size={18} /> : <Sparkles size={18} />}
-                {running ? "正在生成评分草稿" : "生成评分草稿"}<ArrowRight size={16} />
+                {running ? "正在生成评分草稿" : historical && !confirmed ? "按当前量表重新生成" : "生成评分草稿"}<ArrowRight size={16} />
               </Button>
               <p className="source-footnote"><ShieldCheck size={14} />草稿通过校验后，仍需逐维复核与确认。</p>
             </section>
@@ -246,10 +252,11 @@ export function GradingWorkspace() {
           <section className="results-column" aria-label="评分与复核">
             {!task ? <section className="panel empty-state"><div className="empty-illustration"><FileText size={48} strokeWidth={1.2} /><span><Check size={21} /></span></div><span className="eyebrow">从一份作业开始</span><h2>{restoring ? "正在恢复工作进度…" : "评分建议将在这里呈现"}</h2><p>粘贴原文并生成草稿，即可逐维查看评分理由、定位原文证据，再完成教师复核。</p><div className="empty-features"><span><LocateFixed size={16} />原文证据</span><span><ShieldCheck size={16} />程序校验</span><span><ClipboardCheck size={16} />教师确认</span></div></section> : <>
               <section className={`panel result-summary status-${task.status}`}>
+                {historical && <div className="notice historical-task" role="status"><CircleAlert size={18} /><span>此任务使用历史量表 {task.rubric_version}，仅供查看。当前量表为 {rubric?.version}；历史维度满分请参考原始 JSON 记录。{!confirmed && "点击左侧“按当前量表重新生成”可创建关联的新任务。"}</span></div>}
                 <div className="summary-top"><div className="section-label">{running ? <LoaderCircle className="spinning" size={21} /> : confirmed ? <CheckCircle2 size={21} /> : task.status === "failed" ? <CircleAlert size={21} /> : <ClipboardCheck size={21} />}<h2>{statusLabels[task.status]}</h2></div><span className="small-badge">{task.source === "manual" ? "人工批改" : "Agent 评分建议"}</span></div>
                 <div className="summary-body"><div><p>{running ? "正在查证原文并校验草稿，请稍候。" : confirmed ? "教师已完成六维复核，批改记录已保存。" : task.status === "failed" ? "原文与量表已保留，可重试或继续人工批改。" : task.source === "manual" ? "填写六维档位与理由，再逐维勾选确认。" : "请查证评分依据，逐维采纳或调整建议。"}</p><div className="summary-meta"><span>量表 {task.rubric_version}</span><span>{confirmed ? `记录 ${task.record_id}` : `已复核 ${reviewedCount} / 6 维`}</span></div></div>{!running && task.status !== "failed" && <div className="score-total"><strong>{total ?? "—"}</strong><span>/ 100</span><small>{dirty ? "保存后重新计分" : confirmed ? "最终得分" : "待确认得分"}</small></div>}</div>
                 {running && <div className="run-progress"><span /> <small>已执行 {task.trace.filter((item) => item.kind === "tool_result").length} 次工具操作 · 已校验 {task.validation_count} 次</small></div>}
-                {task.status === "failed" && task.error && <div className="task-error"><strong>{task.error.message}</strong><span>错误编号：{task.error.code}</span><div className="error-actions"><Button size="lg" onClick={() => void taskAction("retry")} disabled={!!busy}><RotateCcw size={16} />重新尝试</Button><Button size="lg" variant="outline" onClick={() => void taskAction("manual")} disabled={!!busy}><ClipboardCheck size={16} />进入人工批改</Button></div></div>}
+                {task.status === "failed" && task.error && <div className="task-error"><strong>{task.error.message}</strong><span>错误编号：{task.error.code}</span>{!historical && <div className="error-actions"><Button size="lg" onClick={() => void taskAction("retry")} disabled={!!busy}><RotateCcw size={16} />重新尝试</Button><Button size="lg" variant="outline" onClick={() => void taskAction("manual")} disabled={!!busy}><ClipboardCheck size={16} />进入人工批改</Button></div>}</div>}
               </section>
 
               {(task.status === "pending_review" || confirmed) && rubric && <div className="dimension-cards">{dimensionIds.map((id) => {
@@ -258,7 +265,7 @@ export function GradingWorkspace() {
                 const dimension = review.find((item) => item.id === id);
                 if (!definition || !dimension) return null;
                 return <article className={`panel dimension-card ${dimension.reviewed ? "is-reviewed" : ""}`} key={id}>
-                  <div className="dimension-heading"><div><span className="dimension-letter">{id}</span><h3>{definition.name}</h3></div><div className="dimension-score"><strong>{dimension.score ?? "—"}</strong><span>/ {definition.max_score}</span></div></div>
+                  <div className="dimension-heading"><div><span className="dimension-letter">{id}</span><h3>{historical ? `维度 ${id}（历史记录）` : definition.name}</h3></div><div className="dimension-score"><strong>{dimension.score ?? "—"}</strong>{!historical && <span>/ {definition.max_score}</span>}</div></div>
                   {suggestion?.needs_review && <p className="review-flag"><CircleAlert size={14} />待核查：{suggestion.review_note || "请核实此维度的评分依据。"}</p>}
                   {suggestion && <div className="suggestion-line"><span>Agent 建议</span><strong>{suggestion.score} 分 · {suggestion.level}%</strong><details><summary>查看原始理由</summary><p>{suggestion.reason}</p></details></div>}
                   <div className="review-fields"><label htmlFor={`level-${id}`}>教师档位<select id={`level-${id}`} value={dimension.level ?? ""} onChange={(event) => editReview(id, { level: Number(event.target.value) as Level })} disabled={!editable}><option value="" disabled>选择档位</option>{([100, 70, 30, 0] as Level[]).map((level) => <option value={level} key={level}>{levelLabels[level]}</option>)}</select></label><label htmlFor={`reason-${id}`}>评分理由<textarea id={`reason-${id}`} value={dimension.reason} onChange={(event) => editReview(id, { reason: event.target.value })} disabled={!editable} placeholder="说明此档位的依据…" rows={3} /></label></div>
@@ -269,7 +276,7 @@ export function GradingWorkspace() {
 
               {task.trace.length > 0 && <details className="panel trace-panel"><summary><span><Fingerprint size={17} />执行摘要</span><span>{task.validation_count} 次校验 · {task.repair_rounds} 轮修正<ChevronDown size={16} /></span></summary><div className="trace-content"><p className="trace-meta">任务 {task.id}<br />输入版本 {task.input_version}<br />模型请求 {task.model_calls} 次</p><ol>{task.trace.map((item) => <li key={item.sequence}><span className="trace-dot" /><div><strong>{item.tool ? toolLabels[item.tool] || item.tool : item.kind}</strong><small>第 {item.round} 轮 · 校验累计 {item.validation_count} 次</small><pre>{JSON.stringify(item.details, null, 2)}</pre></div></li>)}</ol></div></details>}
 
-              {(task.status === "pending_review" || confirmed) && <section className="panel confirm-panel"><div><strong>{confirmed ? "批改记录已保存" : `教师复核 ${reviewedCount} / 6 维`}</strong><p>{confirmed ? `记录编号 ${task.record_id}` : "全部维度复核完成后，确认保存最终批改记录。"}</p></div><div className="confirm-actions">{confirmed ? <a className="download-action" href={`/api/tasks/${task.id}/export`} download><ArrowDownToLine size={17} />导出 JSON 记录</a> : <><Button variant="outline" size="lg" onClick={() => void saveReview()} disabled={!complete || !!busy}>{busy === "review" && <LoaderCircle className="spinning" size={16} />}保存复核</Button><Button size="lg" onClick={() => void saveReview(true)} disabled={!readyToConfirm || !!busy}>{busy === "confirm" ? <LoaderCircle className="spinning" size={16} /> : <CheckCircle2 size={16} />}确认保存批改记录</Button></>}</div></section>}
+              {(task.status === "pending_review" || confirmed) && <section className="panel confirm-panel"><div><strong>{confirmed ? "批改记录已保存" : historical ? "历史任务仅供查看" : `教师复核 ${reviewedCount} / 6 维`}</strong><p>{confirmed ? `记录编号 ${task.record_id}` : historical ? "请按当前量表重新生成后复核。" : "全部维度复核完成后，确认保存最终批改记录。"}</p></div><div className="confirm-actions">{confirmed ? <a className="download-action" href={`/api/tasks/${task.id}/export`} download><ArrowDownToLine size={17} />导出 JSON 记录</a> : !historical && <><Button variant="outline" size="lg" onClick={() => void saveReview()} disabled={!complete || !!busy}>{busy === "review" && <LoaderCircle className="spinning" size={16} />}保存复核</Button><Button size="lg" onClick={() => void saveReview(true)} disabled={!readyToConfirm || !!busy}>{busy === "confirm" ? <LoaderCircle className="spinning" size={16} /> : <CheckCircle2 size={16} />}确认保存批改记录</Button></>}</div></section>}
             </>}
           </section>
         </div>

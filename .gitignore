@@ -7,6 +7,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 backend/data/
+/data/
 *.sqlite3
 *.sqlite3-shm
 *.sqlite3-wal

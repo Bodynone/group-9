@@ -19,7 +19,7 @@ def test_decimal_scores_preserve_half_points(task):
     ])
     assert result["total"] == 70
     assert {item["id"]: item["score"] for item in result["dimensions"]} == {
-        "A": 10.5, "B": 14, "C": 21, "D": 10.5, "E": 7, "F": 7,
+        "A": 10.5, "B": 17.5, "C": 17.5, "D": 10.5, "E": 7, "F": 7,
     }
 
 

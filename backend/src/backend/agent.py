@@ -3,7 +3,7 @@ import json
 
 from .config import Settings
 from .provider import ModelError
-from .rubric import IDS
+from .rubric import IDS, VERSION
 from .storage import Store
 from .tools import Toolbox, ToolError, tool_schemas
 
@@ -32,7 +32,7 @@ class AgentRunner:
 
     async def run(self, task_id: str):
         task = self.store.get_task(task_id)
-        if task["status"] != "queued":
+        if task["status"] != "queued" or task["rubric_version"] != VERSION:
             return
         self.store.update_task(task_id, status="running")
         self.store.append_event(task_id, "checklist", details={"dimensions": list(IDS), "goal": "六维评分草稿，待教师确认"})

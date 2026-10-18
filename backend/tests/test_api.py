@@ -147,5 +147,5 @@ def test_unknown_task_and_unsupported_rubric_are_explicit(samples, store, settin
     assert client.post("/api/tasks", json={"text": samples["S1"], "rubric_version": "unknown"}).status_code == 422
     rubric = client.get("/api/rubric")
     assert rubric.status_code == 200
-    assert rubric.json()["version"] == VERSION
-    assert [dimension["max_score"] for dimension in rubric.json()["dimensions"]] == [15, 20, 30, 15, 10, 10]
+    assert rubric.json()["version"] == "2026-v1"
+    assert [dimension["max_score"] for dimension in rubric.json()["dimensions"]] == [15, 25, 25, 15, 10, 10]

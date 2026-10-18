@@ -1,8 +1,8 @@
 {
-  "rubric_version": "af-2026-10-09-v1",
+  "rubric_version": "2026-v1",
   "human_approval": "pending",
-  "source": "9_1_v2.pdf, S1 p6-7 and rubric p12",
-  "note": "Proposed fixed-fixture results, not a real model benchmark or the source worksheet grade. Never append to model input.",
+  "source": "master-engineering-spec-and-wbs.md (2026-v1); original assignment fixtures from 9_1_v2.pdf",
+  "note": "Proposed fixture levels retained and scores recalculated for 2026-v1, not a real model benchmark or teacher approval. Never append to model input.",
   "S1": {
     "input_version": "d5cd106f91b823d6ac639878f287d8bb4319d2a44eb7fa0d2866edc5e839f3ed",
     "levels": {
@@ -15,8 +15,8 @@
     },
     "scores": {
       "A": 15,
-      "B": 20,
-      "C": 30,
+      "B": 25,
+      "C": 25,
       "D": 15,
       "E": 10,
       "F": 10
@@ -35,13 +35,13 @@
     },
     "scores": {
       "A": 15,
-      "B": 20,
+      "B": 25,
       "C": 0,
       "D": 15,
       "E": 10,
       "F": 10
     },
-    "total": 70
+    "total": 75
   },
   "scenarios": {
     "T1": "S1",

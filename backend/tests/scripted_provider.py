@@ -10,7 +10,7 @@ import json
 
 
 DIMENSIONS = "ABCDEF"
-MAXIMA = dict(zip(DIMENSIONS, (15, 20, 30, 15, 10, 10), strict=True))
+MAXIMA = dict(zip(DIMENSIONS, (15, 25, 25, 15, 10, 10), strict=True))
 INJECTED_QUOTE = "【不存在的证据 QX-001】"
 
 

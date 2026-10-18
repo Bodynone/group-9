@@ -1,0 +1,57 @@
+{
+  "tested_at": "2026-10-17T11:37:09.796032+08:00",
+  "mode": "controlled providers and isolated databases; no external model invocation",
+  "backend_tests": {
+    "passed": 153,
+    "warnings": 1,
+    "warning": "pre-existing Starlette TestClient httpx deprecation"
+  },
+  "frontend": {
+    "lint": "passed",
+    "typecheck": "passed",
+    "production_build": "passed",
+    "browser_e2e": "passed"
+  },
+  "docker": {
+    "project": "group9-backend-check",
+    "host_ports": {
+      "frontend": 3108,
+      "backend": 8108
+    },
+    "database_directory": "/tmp/group9-backend-docker-data",
+    "images": {
+      "backend": "sha256:a959a6aa90573b3acbd2a98910a6165c0dbed4c22e53df6c55b3e129944004fc",
+      "frontend": "sha256:918a30863b40109bebd2f7cab558fef5cb172234b5b5af7b3cebcbce6aa85725"
+    },
+    "checks_passed": [
+      "direct-and-proxied-health",
+      "homepage-and-static-assets",
+      "batch-partial-failure",
+      "retry-slot-replacement",
+      "manual-confirmation",
+      "new-rubric-s2-75",
+      "teacher-review-overrides-draft",
+      "csv-bom-chinese-formula-escaping",
+      "container-recreation-keeps-record-and-csv",
+      "restart-recovers-queued-and-running-batch",
+      "latest-production-factory-startup",
+      "production-missing-key-fails-without-model-network",
+      "latest-image-retains-immutable-record",
+      "final-image-factory-and-archive-with-network-disabled"
+    ],
+    "batch_id": "d9ea7420-2e8b-496f-b907-629f360cac7d",
+    "final_batch_counts": {
+      "total": 5,
+      "completed": 5,
+      "failed": 0
+    },
+    "interrupted_batch_id": "b1730c70-f816-428e-bc9b-79b5a0d621b6",
+    "recovered_interrupted_tasks": 2,
+    "runtime_versions": {
+      "python": "3.13.16",
+      "node": "22.23.3",
+      "pnpm_build": "11.28.5"
+    }
+  },
+  "real_model_throughput": "not measured"
+}

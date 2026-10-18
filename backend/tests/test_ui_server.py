@@ -30,5 +30,5 @@ def test_test_server_grades_C_missing_fixture_without_model_network(samples, tmp
         task = client.post("/api/tasks", json={"text": samples["S2"]}).json()
         result = client.get(f"/api/tasks/{task['id']}").json()
         assert result["status"] == "pending_review"
-        assert result["draft"]["total"] == 70
+        assert result["draft"]["total"] == 75
     app.state.store.close()
