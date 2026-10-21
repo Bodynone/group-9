@@ -45,6 +45,60 @@ export type Task = {
   record_id: string | null;
 };
 
+export type BatchStatus = "queued" | "running" | "completed" | "partial_failed" | "failed";
+export type BatchSummary = {
+  batch_id: string;
+  name: string;
+  total_count: number;
+  completed_count: number;
+  failed_count: number;
+  status: BatchStatus;
+  created_at: string;
+  updated_at: string;
+};
+export type BatchItem = {
+  task_id: string;
+  filename: string;
+  status: Task["status"];
+  total_score: number | null;
+  needs_review: boolean;
+  security_flag: string;
+  created_at: string;
+};
+export type Batch = BatchSummary & { tasks: BatchItem[] };
+export type BatchList = { total: number; items: BatchSummary[] };
+export type RadarDimension = {
+  dimension: DimensionId;
+  name: string;
+  full_score: number;
+  average_score: number;
+  scoring_rate: number;
+};
+export type WeaknessItem = {
+  rank: number;
+  dimension: DimensionId;
+  title: string;
+  affected_count: number;
+  percentage: number;
+  recommendation: string;
+};
+export type SecurityAlert = { task_id: string; filename: string; flag: string; detail: string };
+export type ClassAnalytics = {
+  batch_id: string;
+  summary: {
+    total_submitted: number;
+    analyzed_count: number;
+    average_score: number | null;
+    pass_rate: number;
+    excellent_rate: number;
+    max_score: number | null;
+    min_score: number | null;
+  };
+  radar: RadarDimension[];
+  common_weaknesses: WeaknessItem[];
+  security_alerts: SecurityAlert[];
+};
+
 export const dimensionIds: DimensionId[] = ["A", "B", "C", "D", "E", "F"];
 
 export function reviewForTask(task: Task): ReviewDimension[] {
@@ -75,11 +129,34 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   return response.json() as Promise<T>;
 }
 
+export function createBatch(name: string, rubricVersion: string, files: { filename: string; text: string }[]) {
+  return request<BatchSummary>("/api/batch/tasks", {
+    method: "POST",
+    body: JSON.stringify({ name, rubric_version: rubricVersion, files }),
+  });
+}
+
+export function getBatch(batchId: string) {
+  return request<Batch>(`/api/batch/${encodeURIComponent(batchId)}`);
+}
+
+export function getBatches(limit = 20, offset = 0) {
+  return request<BatchList>(`/api/batches?limit=${limit}&offset=${offset}`);
+}
+
+export function getClassAnalytics(batchId: string) {
+  return request<ClassAnalytics>(`/api/batch/${encodeURIComponent(batchId)}/analytics`);
+}
+
+export function batchCsvUrl(batchId: string) {
+  return `/api/batch/${encodeURIComponent(batchId)}/export-csv`;
+}
+
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "连接失败，请检查服务后重试。";
 }
 
-/** Server offsets count Unicode codepoints; DOM text selection counts UTF-16 units. */
+/** Server offsets count codepoints in raw text; textarea selection uses normalized LF and UTF-16. */
 export function selectionOffset(text: string, offset: number): number {
-  return Array.from(text).slice(0, offset).join("").length;
+  return Array.from(text).slice(0, offset).join("").replace(/\r\n?/g, "\n").length;
 }
