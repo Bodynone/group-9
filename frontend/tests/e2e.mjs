@@ -15,11 +15,11 @@ const moduleName = process.env.PLAYWRIGHT_MODULE_PATH
   ? pathToFileURL(resolve(process.env.PLAYWRIGHT_MODULE_PATH)).href
   : "playwright";
 const { chromium } = await import(moduleName);
-const source = await readFile(resolve(repoRoot, "samples/S1.txt"), "utf8");
+const source = (await readFile(resolve(repoRoot, "samples/S1.txt"), "utf8")).replace(/\r\n?/g, "\n");
 const runMarker = `[E2E_RUN_${randomUUID()}]`;
 await mkdir(resultsDir, { recursive: true });
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHROME_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROME_PATH } : {}) });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1100 }, locale: "zh-CN", acceptDownloads: true });
 const page = await context.newPage();
 page.setDefaultTimeout(15_000);

@@ -47,7 +47,7 @@ class SecurityGuardrails:
     # 扩展特征库：(模式名, 正则, 风险档位, 匹配必含关键字)。
     # high=确认注入（safe=False），low=可疑表述（仅告警）。
     _EXTRA_PATTERNS = [
-        ("jailbreak_mode", r"(?i)\b(jailbreak|dan\s+mode|developer\s+mode)\b", "high", ("jailbreak", "dan mode", "developer mode")),
+        ("jailbreak_mode", r"(?i)\b(jailbreak|dan\s+mode|developer\s+mode)\b", "high", ("jailbreak", "dan", "developer")),
         ("reset_system_prompt", r"(?i)(系统提示(词)?(已被|已|被)?(重置|清空)|重置(你|系统)的?(提示词|指令|设定))", "high", ("重置", "清空")),
         ("role_override", r"(?i)(你现在是|现在开始扮演|假装你是).{0,16}(打分|评分|批改|满分)", "high", ("打分", "评分", "批改", "满分")),
         ("must_give_full_marks", r"(?i)(必须|一定|务必|无论如何都要).{0,10}(给|打|评).{0,6}(满分|100\s*分|高分)", "high", ("满分", "100", "高分")),
@@ -59,7 +59,7 @@ class SecurityGuardrails:
         ("bypass_policy", r"(?i)(绕过|无视|忽略).{0,10}(评分|打分|量表|校验|规则)", "high", ("评分", "打分", "量表", "校验", "规则")),
         ("output_score_only", r"(?i)(只|直接)(输出|给出).{0,10}(满分|分数|成绩)", "high", ("满分", "分数", "成绩")),
         ("prompt_leak", r"(?i)(泄露|泄漏|输出|展示).{0,10}(系统提示词|你的提示词|system\s*prompt)", "high", ("提示词", "system")),
-        ("admin_mode", r"(?i)\b(admin|administrator|root)\s+mode\b|管理员模式", "high", ("admin", "管理员")),
+        ("admin_mode", r"(?i)\b(admin|administrator|root)\s+mode\b|管理员模式", "high", ("admin", "root", "管理员")),
         ("do_not_grade", r"(?i)(不要|别)(再)?(批改|评分|打分|评估)(我(的)?)?(作业|内容|文本)", "high", ("批改", "评分", "打分", "评估")),
         ("claim_developer", r"(?i)(我是(你|该系统|系统)的?(开发者|管理员|设计者)|这是.{0,8}(开发者|管理员)的?(指令|命令))", "high", ("开发者", "管理员", "设计者")),
         ("new_rules_apply", r"(?i)(从现在开始|从现在起).{0,12}(遵守|执行|按).{0,10}(新)?(指令|规则)", "high", ("从现在",)),

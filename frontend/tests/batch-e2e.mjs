@@ -88,9 +88,15 @@ try {
   await page.locator("#batch-files").setInputFiles({ name: "invalid.docx", mimeType: "application/octet-stream", buffer: Buffer.from("not supported") });
   await page.getByText(/仅支持 TXT、MD/).waitFor();
   assert.equal(await page.locator(".selected-files li").count(), 0);
+  await page.locator("#batch-files").setInputFiles({ name: "invalid-utf8.txt", mimeType: "text/plain", buffer: Buffer.from([0xc3, 0x28]) });
+  await page.getByText(/不是有效的 UTF-8/).waitFor();
+  assert.equal(await page.locator(".selected-files li").count(), 0);
+  await page.locator("#batch-files").setInputFiles({ name: "oversized.txt", mimeType: "text/plain", buffer: Buffer.alloc(200_001, 65) });
+  await page.getByText(/文件过大/).waitFor();
+  assert.equal(await page.locator(".selected-files li").count(), 0);
   await page.locator("#batch-files").setInputFiles([
     { name: "001_甲.txt", mimeType: "text/plain", buffer: Buffer.from(source) },
-    { name: "002_乙.md", mimeType: "text/markdown", buffer: Buffer.from("# 第二份作业\n内容") },
+    { name: "002_乙.md", mimeType: "text/markdown", buffer: Buffer.from("\ufeff# 第二份作业\r\n🧪内容") },
   ]);
   await page.locator(".selected-files li").nth(1).waitFor();
   await page.getByRole("button", { name: "创建批次" }).click();
@@ -100,6 +106,7 @@ try {
   assert.equal(submitted.rubric_version, "2026-v1");
   assert.deepEqual(submitted.files.map((item) => item.filename), ["001_甲.txt", "002_乙.md"]);
   assert.equal(submitted.files[0].text, source);
+  assert.equal(submitted.files[1].text, "\ufeff# 第二份作业\r\n🧪内容");
   assert.ok(batchReads >= 2);
   assert.match(await page.locator(".progress-summary").textContent(), /已完成批改 2 \/ 2/);
   assert.equal(await page.locator(".task-pending_review").count(), 1);

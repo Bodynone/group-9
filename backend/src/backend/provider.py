@@ -1,21 +1,27 @@
 """OpenAI-compatible transport; credentials and reasoning stay server-side."""
 
 import re
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 import httpx
 
 from .config import Settings
 
-# 标准计价常量（元/千 token）：对齐 SenseNova deepseek-v4-flash 公开价，集中于此便于调价（WBS 4.3）
-PROMPT_PRICE_CNY_PER_1K = 0.002
-COMPLETION_PRICE_CNY_PER_1K = 0.008
-
-
-def usage_cost(usage: dict) -> float:
-    """按标准价格折算一次调用的物理成本（元），保留 6 位小数。"""
-    prompt = usage.get("prompt_tokens") or 0
-    completion = usage.get("completion_tokens") or 0
-    return round(prompt * PROMPT_PRICE_CNY_PER_1K / 1000 + completion * COMPLETION_PRICE_CNY_PER_1K / 1000, 6)
+def usage_cost(usage: dict, *, prompt_price=None, completion_price=None) -> float | None:
+    """Estimate CNY only with explicit per-million prices; unknown pricing is not zero."""
+    counts = [usage.get("prompt_tokens"), usage.get("completion_tokens")]
+    if any(type(count) is not int or count < 0 for count in counts):
+        return None
+    if prompt_price is None or completion_price is None:
+        return None
+    try:
+        prices = [Decimal(str(prompt_price)), Decimal(str(completion_price))]
+        if any(not price.is_finite() or price < 0 for price in prices):
+            return None
+        amount = sum(Decimal(count) * price for count, price in zip(counts, prices)) / Decimal(1_000_000)
+        return float(amount.quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP))
+    except (InvalidOperation, ValueError, OverflowError):
+        return None
 
 
 class ModelError(Exception):

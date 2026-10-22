@@ -32,9 +32,16 @@ const taskLabels: Record<Task["status"], string> = {
 function readText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onload = () => {
+      try {
+        resolve(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(reader.result as ArrayBuffer));
+      } catch {
+        reject(new Error(`${file.name}：不是有效的 UTF-8 文本，请转换编码后重试`));
+      }
+    };
     reader.onerror = () => reject(new Error(`${file.name} 读取失败`));
-    reader.readAsText(file, "UTF-8");
+    reader.onabort = () => reject(new Error(`${file.name} 读取已取消`));
+    reader.readAsArrayBuffer(file);
   });
 }
 
@@ -114,6 +121,7 @@ export function BatchUploader({ active, selectedBatchId, onSelectBatch, onOpenTa
     const rejected: string[] = [];
     const candidates = Array.from(incoming).filter((file) => {
       if (!/\.(txt|md)$/i.test(file.name)) { rejected.push(`${file.name}：仅支持 TXT、MD`); return false; }
+      if (file.size > 200_000) { rejected.push(`${file.name}：文件过大，超过 50,000 字符的 UTF-8 容量`); return false; }
       const key = file.name.toLocaleLowerCase();
       if (known.has(key)) { rejected.push(`${file.name}：文件名重复`); return false; }
       known.add(key);
@@ -123,7 +131,7 @@ export function BatchUploader({ active, selectedBatchId, onSelectBatch, onOpenTa
     const accepted: SelectedFile[] = [];
     results.forEach((result, index) => {
       const filename = candidates[index].name;
-      if (result.status === "rejected") { rejected.push(`${filename}：读取失败`); return; }
+      if (result.status === "rejected") { rejected.push(errorMessage(result.reason)); return; }
       const text = result.value;
       const characters = Array.from(text).length;
       if (!text.trim()) rejected.push(`${filename}：正文为空`);
@@ -200,7 +208,7 @@ export function BatchUploader({ active, selectedBatchId, onSelectBatch, onOpenTa
           <div className="table-scroll"><table className="batch-table"><thead><tr><th scope="col">作业文件</th><th scope="col">状态</th><th scope="col">得分</th><th scope="col">提示</th><th scope="col">操作</th></tr></thead><tbody>{visibleBatch.tasks.map((item) => <tr key={item.task_id}><td className="filename-cell" title={item.filename}>{item.filename}</td><td className="status-cell"><span className={`status-pill task-${item.status}`}>{taskLabels[item.status]}</span></td><td className="score-cell">{item.total_score === null ? "—" : item.total_score.toFixed(1)}</td><td className="hint-cell">{item.security_flag !== "none" ? <span className="table-warning"><CircleAlert size={14} />安全告警</span> : item.needs_review ? <span className="table-warning"><CircleAlert size={14} />重点复核</span> : "—"}</td><td className="row-action-cell"><button className="text-action" onClick={() => onOpenTask(item.task_id)}>打开作业<ArrowRight size={14} /></button></td></tr>)}</tbody></table></div>
         </> : <div className="quiet-empty monitor-empty"><FolderOpen size={29} /><p>{selectedBatchId ? "正在加载批次…" : "选择或新建批次"}</p></div>}
       </section>
-      <footer className="workspace-footer"><span>阅见 · 批次管理</span><span>每份作业仍需教师复核确认</span></footer>
+      <footer className="workspace-footer"><span>阅见 · 批次管理</span><span>导出表包含草稿，每份作业仍需教师复核确认</span></footer>
     </main>
   );
 }

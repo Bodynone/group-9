@@ -15,6 +15,8 @@ uv run --project backend backend
 
 根 `.env` 提供 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 和可选的 `DATABASE_PATH`，系统环境变量优先。默认示例仍为魔搭和 `Qwen/Qwen3.8-Flash-Next`，不替换已有配置。配置不足或服务失败时任务明确失败，不返回模拟评分。密钥不发送给前端或写入执行摘要。
 
+Token 审计只记录上游返回的有效非负计数。费用默认不可用；如需估算，须同时配置实际服务的 `MODEL_INPUT_PRICE_CNY_PER_MILLION` 与 `MODEL_OUTPUT_PRICE_CNY_PER_MILLION`（人民币/百万 Token）。执行摘要中 `cost_cny` 是配置价格的估计值，`cost_basis=configured_estimate`，不是服务账单；缺失或非法价格返回 `cost_cny=null`、`cost_basis=unavailable`，不假设所有模型共用价格。
+
 容器启动和网络配置见根 README。Docker 以 `0.0.0.0:8000` 暴露服务，数据库挂载 `./data:/app/backend/data`，保持一个 worker；后台调度在当前进程运行，不能通过增加 worker 数实现扩容。
 
 ## 行为与持久化

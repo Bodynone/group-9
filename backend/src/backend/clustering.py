@@ -5,7 +5,13 @@
 batch_id 从任务元数据推导，路由挂载时以权威参数覆写。
 """
 
+from decimal import Decimal, ROUND_HALF_EVEN
+
 from .rubric import IDS, RUBRIC
+
+
+def rounded(value: Decimal, places: int) -> float:
+    return float(value.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_EVEN))
 
 # 高频问题短语库：(关键词元组, 问题标题, 教学建议)。
 # 关键词仅在失分严重（档位 30 或 0）维度的理由中匹配（spec 3.4 规则）。
@@ -41,26 +47,26 @@ class ClassAnalyticsEngine:
             if item is not None and item.get("total") is not None and item.get("dimensions")
         ]
         count = len(analyzed)
-        totals = [float(item["total"]) for item in analyzed]
+        totals = [Decimal(str(item["total"])) for item in analyzed]
 
         summary = {
             "total_submitted": len(tasks),
             "analyzed_count": count,
-            "average_score": round(sum(totals) / count, 1) if count else None,
-            "pass_rate": round(sum(1 for total in totals if total >= 60) / count, 2) if count else 0.0,
-            "excellent_rate": round(sum(1 for total in totals if total >= 90) / count, 2) if count else 0.0,
-            "max_score": round(max(totals), 1) if count else None,
-            "min_score": round(min(totals), 1) if count else None,
+            "average_score": rounded(sum(totals) / count, 1) if count else None,
+            "pass_rate": rounded(Decimal(sum(1 for total in totals if total >= 60)) / count, 2) if count else 0.0,
+            "excellent_rate": rounded(Decimal(sum(1 for total in totals if total >= 90)) / count, 2) if count else 0.0,
+            "max_score": rounded(max(totals), 1) if count else None,
+            "min_score": rounded(min(totals), 1) if count else None,
         }
 
         radar = []
         for dimension in RUBRIC["dimensions"]:
             dim_id = dimension["id"]
-            scores = [float(d["score"]) for item in analyzed for d in item["dimensions"] if d["id"] == dim_id]
-            average = round(sum(scores) / len(scores), 1) if scores else 0.0
+            scores = [Decimal(str(d["score"])) for item in analyzed for d in item["dimensions"] if d["id"] == dim_id]
+            average = sum(scores) / len(scores) if scores else Decimal(0)
             radar.append({
                 "dimension": dim_id, "name": dimension["name"], "full_score": dimension["max_score"],
-                "average_score": average, "scoring_rate": round(average / dimension["max_score"], 2),
+                "average_score": rounded(average, 1), "scoring_rate": rounded(average / dimension["max_score"], 2),
             })
 
         # 共性薄弱项：仅在弱档（30/0）维度理由中统计短语命中，按受影响任务数取 TOP 3
@@ -72,20 +78,17 @@ class ClassAnalyticsEngine:
         ]
         candidates = []
         for keywords, title, recommendation in _WEAKNESS_LIBRARY:
-            affected = set()
-            dimension_hits: dict[str, int] = {}
+            dimension_hits: dict[str, set[int]] = {}
             for position, dim_id, reason in weak:
                 if any(keyword in reason for keyword in keywords):
-                    affected.add(position)
-                    dimension_hits[dim_id] = dimension_hits.get(dim_id, 0) + 1
-            if affected:
-                dimension = max(dimension_hits, key=lambda key: (dimension_hits[key], -IDS.index(key)))
+                    dimension_hits.setdefault(dim_id, set()).add(position)
+            for dimension, affected in dimension_hits.items():
                 candidates.append((len(affected), dimension, title, recommendation))
         candidates.sort(key=lambda item: (-item[0], IDS.index(item[1])))
         common_weaknesses = [
             {
                 "rank": rank, "dimension": dimension, "title": title,
-                "affected_count": affected, "percentage": round(affected / count, 2) if count else 0.0,
+                "affected_count": affected, "percentage": rounded(Decimal(affected) / count, 2) if count else 0.0,
                 "recommendation": recommendation,
             }
             for rank, (affected, dimension, title, recommendation) in enumerate(candidates[:3], start=1)

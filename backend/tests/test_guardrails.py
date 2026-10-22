@@ -97,6 +97,13 @@ def test_empty_or_non_string_input_is_safe(guardrails):
         assert result.detected_patterns == []
 
 
+@pytest.mark.parametrize("text", ["root mode", "ROOT\tmode", "developer   mode", "developer\nmode", "DAN\tmode"])
+def test_keyword_prefilter_does_not_hide_regex_matches(text, guardrails):
+    result = guardrails.scan_text(text)
+    assert result.risk_level == "high"
+    assert result.safe is False
+
+
 def test_scan_stays_within_contract_time_budget(guardrails):
     text = "这是正常的作业内容，包含需求背景、验收场景与测试用例。\n" * 1900
     assert len(text) >= 50_000

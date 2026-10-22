@@ -13,10 +13,10 @@ ROOT = Path(__file__).resolve().parents[2]
 @pytest.fixture
 def samples():
     """Load public synthetic fixtures, never the user's model credentials."""
-    expected = json.loads((ROOT / "samples/expected.json").read_text())
+    expected = json.loads((ROOT / "samples/expected.json").read_text(encoding="utf-8"))
     return {
-        "S1": (ROOT / "samples/S1.txt").read_text(),
-        "S2": (ROOT / "samples/S2.txt").read_text(),
+        "S1": (ROOT / "samples/S1.txt").read_text(encoding="utf-8"),
+        "S2": (ROOT / "samples/S2.txt").read_text(encoding="utf-8"),
         "expected": expected,
     }
 

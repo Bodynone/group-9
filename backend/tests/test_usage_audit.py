@@ -11,10 +11,19 @@ from backend.rubric import VERSION
 from scripted_provider import ScriptedProvider
 
 
-def test_usage_cost_follows_standard_prices():
-    assert usage_cost({"prompt_tokens": 1000, "completion_tokens": 500}) == 0.006  # 0.002 + 0.004
-    assert usage_cost({"prompt_tokens": 0, "completion_tokens": 0}) == 0.0
-    assert usage_cost({}) == 0.0
+def test_usage_cost_requires_explicit_prices():
+    usage = {"prompt_tokens": 1000, "completion_tokens": 500}
+    assert usage_cost(usage) is None
+    assert usage_cost(usage, prompt_price="2", completion_price="8") == 0.006
+    assert usage_cost({"prompt_tokens": 0, "completion_tokens": 0}, prompt_price="2", completion_price="8") == 0.0
+    assert usage_cost({}, prompt_price="2", completion_price="8") is None
+
+
+def test_invalid_usage_or_prices_do_not_invent_costs():
+    for tokens in (-1, True, "100", float("nan")):
+        assert usage_cost({"prompt_tokens": tokens, "completion_tokens": 10}, prompt_price="2", completion_price="8") is None
+    for price in (None, "NaN", "Infinity", "-1", "not-a-price"):
+        assert usage_cost({"prompt_tokens": 10, "completion_tokens": 10}, prompt_price=price, completion_price="8") is None
 
 
 def test_provider_passes_usage_through_only_when_present(settings, monkeypatch):
@@ -87,3 +96,22 @@ def test_malformed_or_absent_usage_leaves_no_audit_event(samples, store, setting
     provider = UsageProvider(task, usage=None)  # 上游未返回 usage
     asyncio.run(AgentRunner(store, provider, settings).run(task["id"]))
     assert not [event for event in store.get_task(task["id"])["trace"] if event["kind"] == "model_usage"]
+
+
+def test_negative_usage_cannot_fail_grading_or_enter_audit(samples, store, settings):
+    task = store.create_task(samples["S1"], VERSION)
+    provider = UsageProvider(task, usage={"prompt_tokens": -1, "completion_tokens": 2})
+    asyncio.run(AgentRunner(store, provider, settings).run(task["id"]))
+    result = store.get_task(task["id"])
+    assert result["status"] == "pending_review"
+    assert not [event for event in result["trace"] if event["kind"] == "model_usage"]
+
+
+def test_agent_uses_configured_prices_and_labels_estimates(samples, store, settings):
+    settings.input_price_cny_per_million = "2"
+    settings.output_price_cny_per_million = "8"
+    task = store.create_task(samples["S1"], VERSION)
+    asyncio.run(AgentRunner(store, UsageProvider(task), settings).run(task["id"]))
+    event = next(event for event in store.get_task(task["id"])["trace"] if event["kind"] == "model_usage")
+    assert event["details"]["cost_cny"] == 0.0048
+    assert event["details"]["cost_basis"] == "configured_estimate"

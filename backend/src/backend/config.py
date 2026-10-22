@@ -18,6 +18,8 @@ class Settings:
     max_model_calls: int = 24
     task_timeout: float = 300
     request_timeout: float = 90
+    input_price_cny_per_million: str | None = None
+    output_price_cny_per_million: str | None = None
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -27,4 +29,6 @@ class Settings:
             base_url=os.getenv("OPENAI_BASE_URL", cls.base_url),
             model=os.getenv("OPENAI_MODEL", cls.model),
             database_path=os.getenv("DATABASE_PATH", str(ROOT / "backend/data/grading.sqlite3")),
+            input_price_cny_per_million=os.getenv("MODEL_INPUT_PRICE_CNY_PER_MILLION"),
+            output_price_cny_per_million=os.getenv("MODEL_OUTPUT_PRICE_CNY_PER_MILLION"),
         )

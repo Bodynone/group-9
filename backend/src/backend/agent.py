@@ -98,13 +98,17 @@ class AgentRunner:
             if not isinstance(response, dict):
                 raise ModelError("model_invalid_response", "模型响应结构不合法。")
             usage = response.pop("usage", None)
-            if isinstance(usage, dict) and type(usage.get("prompt_tokens")) is int and type(usage.get("completion_tokens")) is int:
+            if isinstance(usage, dict) and all(type(usage.get(key)) is int and usage[key] >= 0 for key in ("prompt_tokens", "completion_tokens")):
                 total = usage.get("total_tokens")
+                minimum_total = usage["prompt_tokens"] + usage["completion_tokens"]
+                cost = usage_cost(usage, prompt_price=self.settings.input_price_cny_per_million,
+                                  completion_price=self.settings.output_price_cny_per_million)
                 self.store.append_event(task_id, "model_usage", details={
                     "prompt_tokens": usage["prompt_tokens"],
                     "completion_tokens": usage["completion_tokens"],
-                    "total_tokens": total if type(total) is int else usage["prompt_tokens"] + usage["completion_tokens"],
-                    "cost_cny": usage_cost(usage),
+                    "total_tokens": total if type(total) is int and total >= minimum_total else minimum_total,
+                    "cost_cny": cost,
+                    "cost_basis": "configured_estimate" if cost is not None else "unavailable",
                 })
             calls = response.get("tool_calls") or []
             if not isinstance(calls, list) or not calls:

@@ -111,3 +111,22 @@ def test_teacher_review_takes_priority_over_draft():
     task = make_task("t1", "pending_review", full_dims(), 100, review_total=92.5)
     summary = ClassAnalyticsEngine().analyze_batch([task])["summary"]
     assert summary["average_score"] == 92.5
+
+
+def test_same_weakness_in_different_dimensions_has_separate_counts():
+    tasks = [
+        make_task("a", "pending_review", full_dims({"A": (0, 0, "该部分未提供")}), 85),
+        make_task("c", "pending_review", full_dims({"C": (0, 0, "该部分未提供")}), 75),
+    ]
+    weaknesses = ClassAnalyticsEngine().analyze_batch(tasks)["common_weaknesses"]
+    assert {(item["dimension"], item["affected_count"], item["percentage"]) for item in weaknesses} == {
+        ("A", 1, 0.5), ("C", 1, 0.5),
+    }
+
+
+def test_radar_rate_uses_exact_mean_before_display_rounding():
+    tasks = [make_task(str(i), "pending_review", full_dims({"A": (30, 4.5, "依据不足")}), 89.5) for i in range(3)]
+    tasks.append(make_task("full", "pending_review", full_dims(), 100))
+    radar = ClassAnalyticsEngine().analyze_batch(tasks)["radar"][0]
+    assert radar["average_score"] == 7.1
+    assert radar["scoring_rate"] == 0.48  # 7.125 / 15, not rounded 7.1 / 15

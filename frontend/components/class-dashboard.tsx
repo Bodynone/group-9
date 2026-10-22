@@ -109,7 +109,7 @@ export function ClassDashboard({ active, selectedBatchId, onShowUploader, onOpen
           <section className="diagnosis-section security-section" aria-labelledby="security-title"><div className="surface-heading"><div><span className="section-kicker">03 / 安全核查</span><h2 id="security-title">作业安全告警</h2></div><span className="alert-count">{data.security_alerts.length}</span></div>{data.security_alerts.length ? <ul className="security-list">{data.security_alerts.map((item) => <li key={item.task_id}><ShieldAlert size={18} /><div><strong>{item.filename}</strong><p>{item.detail}</p><button className="text-action" onClick={() => onOpenTask(item.task_id)}>打开作业<ArrowRight size={14} /></button></div></li>)}</ul> : <div className="quiet-empty"><p>当前无安全告警</p></div>}</section>
         </div>
       </>}
-      <footer className="workspace-footer"><span>阅见 · 班级学情</span><span>统计随教师复核结果更新</span></footer>
+      <footer className="workspace-footer"><span>阅见 · 班级学情</span><span>临时统计包含待确认草稿，随教师复核更新</span></footer>
     </main>
   );
 }

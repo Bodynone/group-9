@@ -56,6 +56,8 @@ pnpm test:batch-e2e
 
 `test:batch-e2e` 使用浏览器拦截构造的 API 响应，不调用模型或依赖后端服务；需先启动前端，可用 `E2E_BASE_URL` 覆盖默认地址 `http://localhost:3000`。若使用系统 Chrome，可设置 `PLAYWRIGHT_CHROME_PATH` 指向可执行文件。测试覆盖文件校验、批次轮询、CSV 下载、学情雷达、安全告警跳转、Tab/批次恢复、CRLF 证据定位及桌面/移动端溢出检查。
 
+文件摄取严格校验 UTF-8，保留 BOM、换行与 Unicode 原文；非法编码和明显超限文件不会进入提交列表。学情与批次 CSV 包含待确认草稿，均不是正式发布的课程成绩。
+
 ## 浏览器验收
 
 浏览器验收使用测试专用 FastAPI 服务中的模型替身，驱动真实工具、API、数据库和页面。它不会读取模型密钥或调用外部模型；真实模型验收单独执行。
@@ -78,9 +80,12 @@ NEXT_DIST_DIR=.next-e2e BACKEND_URL=http://127.0.0.1:8001 pnpm start --port 3001
 ```bash
 pnpm exec playwright install chromium
 E2E_BASE_URL=http://127.0.0.1:3001 pnpm test:e2e
+E2E_BASE_URL=http://127.0.0.1:3001 pnpm test:batch-integration
 ```
 
 测试覆盖教师修改 A 维档位后得分 95.5、复核确认、JSON 下载、刷新恢复、原文变更失效、工具失败后重试、人工接管及桌面/移动布局。截图和导出记录写入忽略目录 `test-results/`。
+
+`test:batch-integration` 不拦截 API，使用相同的测试后端验证批量上传、BOM/CRLF/emoji 原文保留、学情、安全告警、证据定位、教师改档确认和 JSON/CSV 导出。三个浏览器测试均可通过 `PLAYWRIGHT_CHROME_PATH` 使用已安装的 Chrome/Edge。
 
 历史任务使用浏览器路由返回旧快照，检查只读状态、隐藏满分、停止轮询、新版重生成及归档下载入口；真实旧数据的后端兼容由后端测试覆盖。本次实测状态见根目录 `docs/backend-acceptance.md`。
 

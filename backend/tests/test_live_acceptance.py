@@ -46,15 +46,15 @@ def test_acceptance_export_metadata_redacts_credentials_and_service_query():
 def test_missing_real_service_configuration_saves_failure_and_exits_one(samples, tmp_path, monkeypatch, capsys):
     sample_dir = tmp_path / "samples"
     sample_dir.mkdir()
-    (sample_dir / "S1.txt").write_text(samples["S1"])
-    (sample_dir / "expected.json").write_text(json.dumps(samples["expected"]))
+    (sample_dir / "S1.txt").write_text(samples["S1"], encoding="utf-8")
+    (sample_dir / "expected.json").write_text(json.dumps(samples["expected"]), encoding="utf-8")
     monkeypatch.setattr(live, "ROOT", tmp_path)
     monkeypatch.setattr(live.Settings, "from_env", lambda: Settings(api_key=""))
     assert asyncio.run(live.run_sample("S1")) == 1
     printed = json.loads(capsys.readouterr().out)
     assert printed["status"] == "failed"
     assert printed["error"]["code"] == "model_not_configured"
-    record = json.loads(Path(printed["output"]).read_text())
+    record = json.loads(Path(printed["output"]).read_text(encoding="utf-8"))
     assert record["human_approval"] == "pending"
     assert record["task"]["text"] == samples["S1"]
     assert record["assessment"]["passed"] is False
