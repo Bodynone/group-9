@@ -34,6 +34,14 @@ _CANONICAL_KEYWORDS = (
     ("忽略",),
 )
 
+# These patterns start at one of their mandatory keywords. Their regex cannot
+# match before the first keyword, so avoid rescanning a long unrelated prefix.
+# Do not add a pattern whose keyword can occur later inside the match.
+_PREFIX_KEYWORD_PATTERNS = {
+    "ignore_previous_instructions", "system_you_must", "ignore_previous_chinese",
+    "jailbreak_mode", "ignore_above_give", "give_me_marks", "admin_mode",
+}
+
 
 class SecurityGuardrails:
     # master spec 3.3 契约固定的四类高危注入模式（逐字保留）
@@ -93,9 +101,13 @@ def scan_text(self, text: str) -> GuardrailResult:
     first_match = None
     text_lower = text.lower()
     for name, regex, risk, keywords in self._COMPILED:
-        if not any(keyword in text_lower for keyword in keywords):
+        positions = [position for keyword in keywords if (position := text_lower.find(keyword)) >= 0]
+        if not positions:
             continue
-        match = regex.search(text)
+        # Unicode lower() can expand a codepoint (e.g. İ). Use original offsets
+        # only when that conversion preserves length; otherwise scan from zero.
+        start = min(positions) if name in _PREFIX_KEYWORD_PATTERNS and len(text_lower) == len(text) else 0
+        match = regex.search(text, start)
         if match is None:
             continue
         if first_match is None:

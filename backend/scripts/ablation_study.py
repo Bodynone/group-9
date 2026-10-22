@@ -29,8 +29,9 @@ def load_samples(limit):
     assert len(samples) == 20
     for item in samples:
         path = BENCHMARK.parent / item["file"]
-        text = path.read_text(encoding="utf-8")
-        assert hashlib.sha256(text.encode()).hexdigest() == item["sha256"], item["id"]
+        raw = path.read_bytes()
+        text = raw.decode("utf-8")
+        assert hashlib.sha256(raw).hexdigest() == item["sha256"], item["id"]
         assert 1500 <= len(text) <= 50_000, item["id"]
         assert all(f"\n{dim} " in text for dim in WEIGHTS), item["id"]
         assert set(item["expected_levels"]) == set(WEIGHTS)
@@ -73,7 +74,9 @@ def assess(draft, text):
     if not isinstance(draft, dict) or not isinstance(draft.get("dimensions"), list):
         return result
     dimensions = draft["dimensions"]
-    if len(dimensions) != 6 or {d.get("id") for d in dimensions if isinstance(d, dict)} != set(WEIGHTS):
+    if (len(dimensions) != 6
+            or any(not isinstance(d, dict) or not isinstance(d.get("id"), str) for d in dimensions)
+            or {d["id"] for d in dimensions} != set(WEIGHTS)):
         return result
     try:
         result["format"] = all(
@@ -93,9 +96,16 @@ def assess(draft, text):
                 result["evidence_total"] += 1
                 if isinstance(ref, dict):
                     quote = ref.get("quote")
+                    start, end = ref.get("start"), ref.get("end")
+                    valid = (isinstance(quote, str) and bool(quote)
+                             and type(start) is int and type(end) is int
+                             and 0 <= start < end <= len(text) and text[start:end] == quote
+                             and type(ref.get("paragraph")) is int
+                             and ref["paragraph"] == text[:start].count("\n") + 1)
                 else:
                     quote = ref
-                if isinstance(quote, str) and quote and quote in text:
+                    valid = isinstance(quote, str) and bool(quote) and quote in text
+                if valid:
                     result["evidence_valid"] += 1
     except (KeyError, TypeError, ValueError, ArithmeticError):
         pass
@@ -136,7 +146,12 @@ async def half_agent(provider, task, rubric, max_calls):
             if not {"read_rubric", "locate_evidence", "calculate_scores"}.issubset(used):
                 raise ValueError("required tools were not called")
             return parse_json(response.get("content")), usage
-        messages.append({"role": "assistant", "content": response.get("content"), "tool_calls": calls})
+        if not isinstance(calls, list) or len(calls) > 24:
+            raise ValueError("invalid or excessive tool calls")
+        assistant = {"role": "assistant", "content": response.get("content"), "tool_calls": calls}
+        if response.get("reasoning_content") is not None:
+            assistant["reasoning_content"] = response["reasoning_content"]
+        messages.append(assistant)
         for call in calls:
             name = call["function"]["name"]
             if name not in allowed:
@@ -199,7 +214,9 @@ def report(path, run, counts):
               "Token 只在全部样本均返回有效 usage 时报告。耗时包含模型与工具调用。", "",
               "真值表是依照量表编制的暂定标签，尚未经过独立教师复核；本报告的机械指标不等于评分与教师一致率。",
               "对抗样本的注入文字作为待评价文本，不单凭注入存在判零；低分来自需求内容缺失。", "",
-              "逐样本结构化结果见 `docs/eval-results.json`。图表可按上表三组的算术准确率、证据真实率、格式合规率绘制并标注样本数。", ""]
+              "引用为字符串时检查逐字包含；引用为定位对象时额外检查 Unicode codepoint 切片、范围和段落。空引用不算作真实引用。",
+              "逐样本草稿、输入哈希和机械指标见同目录 `eval-results.json`。运行参数也保存在该文件中。",
+              "这三组同时存在提示词、输出协议和护栏差异，只能作为系统方案比较，不能把差异全部归因于校验工具。", ""]
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -222,26 +239,32 @@ async def run(args):
             tic = perf_counter()
             try:
                 if key == "baseline":
-                    draft, usage = await direct(provider, text, RUBRIC)
+                    draft, usage = await asyncio.wait_for(direct(provider, text, RUBRIC), settings.task_timeout)
                 elif key == "half_agent":
                     task = Store._new_task(text, "2026-v1")
-                    draft, usage = await half_agent(provider, task, RUBRIC, settings.max_model_calls)
+                    draft, usage = await asyncio.wait_for(
+                        half_agent(provider, task, RUBRIC, settings.max_model_calls), settings.task_timeout)
                 else:
                     draft, usage = await full_agent(provider, settings, text)
                 metrics = assess(draft, text)
                 error = None
             except Exception as exc:
                 draft, usage, metrics = None, {"prompt_tokens": 0, "completion_tokens": 0, "complete": False}, assess(None, text)
-                error = f"{type(exc).__name__}: {str(exc)[:160]}"
-            results[key].append({"sample": item["id"], "seconds": round(perf_counter()-tic, 3),
+                error = provider.redact(f"{type(exc).__name__}: {exc}")[:160]
+            results[key].append({"sample": item["id"], "input_version": item["sha256"],
+                                 "seconds": round(perf_counter()-tic, 3), "draft": draft,
                                  "usage": usage, "metrics": metrics, "error": error})
             print(f"{item['id']} {key}: {'ok' if error is None else error}", flush=True)
     record = {"started_at": started, "model": settings.model, "sample_count": len(samples),
-              "rubric_version": "2026-v1", "results": results}
+              "rubric_version": "2026-v1", "label_status": "provisional_rubric_based_not_expert_verified",
+              "parameters": {"max_model_calls": settings.max_model_calls,
+                             "task_timeout": settings.task_timeout, "request_timeout": settings.request_timeout},
+              "results": results}
     counts = {key: summarize(rows) for key, rows in results.items()}
     (ROOT / "docs/eval-results.json").write_text(json.dumps(record, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     report(ROOT / "docs/eval-report.md", record, counts)
     print(json.dumps(counts, ensure_ascii=False, indent=2))
+    return int(any(row["error"] is not None for rows in results.values() for row in rows))
 
 
 def main():
@@ -255,8 +278,7 @@ def main():
     if args.check:
         print(f"已校验 {len(samples)} 份样本、哈希及暂定档位/总分；未运行模型实验。")
         return 0
-    asyncio.run(run(args))
-    return 0
+    return asyncio.run(run(args))
 
 
 if __name__ == "__main__":
