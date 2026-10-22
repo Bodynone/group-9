@@ -6,6 +6,7 @@ from fastapi.responses import Response
 
 from .agent import AgentRunner
 from .batch import BatchRunner
+from .clustering import ClassAnalyticsEngine
 from .config import Settings
 from .models import CreateBatch, CreateTask, UpdateReview
 from .provider import ChatProvider
@@ -104,6 +105,16 @@ def create_app(settings: Settings | None = None, provider=None, store: Store | N
             "Content-Disposition": f'attachment; filename="gradebook-{batch_id}.csv"',
             "Cache-Control": "no-store",
         })
+
+    @app.get("/api/batch/{batch_id}/analytics")
+    def analytics(batch_id: str):
+        try:
+            tasks = store.get_batch_tasks(batch_id)
+        except KeyError:
+            raise HTTPException(404, "批次不存在") from None
+        result = ClassAnalyticsEngine().analyze_batch(tasks)
+        result["batch_id"] = batch_id
+        return result
 
     @app.post("/api/tasks/{task_id}/manual")
     def manual(task_id: str):

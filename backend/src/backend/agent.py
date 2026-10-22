@@ -2,7 +2,8 @@ import asyncio
 import json
 
 from .config import Settings
-from .provider import ModelError
+from .guardrails import SecurityGuardrails
+from .provider import ModelError, usage_cost
 from .rubric import IDS, VERSION
 from .storage import Store
 from .tools import Toolbox, ToolError, tool_schemas
@@ -30,14 +31,38 @@ class AgentRunner:
         error = {"code": code, "message": message[:1000] + " 原作业与量表已保留。", "tool": tool}
         self.store.transition(task_id, "failed", details=error, tool=tool, status="failed", draft=None, review=None, error=error)
 
+    @staticmethod
+    def _apply_guardrail(draft: dict, guardrail) -> dict:
+        """高危注入强制全部维度待复核并注入安全告警；低危仅附加提示不强制复核。"""
+        if guardrail is None or guardrail.risk_level == "none":
+            return draft
+        draft["security_flag"] = "prompt_injection_detected" if guardrail.risk_level == "high" else "low_risk"
+        prefix = "【安全告警】" if guardrail.risk_level == "high" else "【安全提示】"
+        for dimension in draft.get("dimensions", []):
+            note = dimension.get("review_note") or ""
+            dimension["review_note"] = f"{prefix}{guardrail.warning_message} {note}".strip()
+            if guardrail.risk_level == "high":
+                dimension["needs_review"] = True
+        return draft
+
     async def run(self, task_id: str):
         task = self.store.get_task(task_id)
         if task["status"] != "queued" or task["rubric_version"] != VERSION:
             return
+        guardrail = SecurityGuardrails().scan_text(task["text"])
+        if guardrail.risk_level != "none":
+            # 干净文本零足迹：仅检出风险时写入标志与审计事件
+            flag = "prompt_injection_detected" if guardrail.risk_level == "high" else "low_risk"
+            self.store.transition(
+                task_id, "security_scan",
+                details={"safe": guardrail.safe, "risk_level": guardrail.risk_level,
+                         "detected_patterns": guardrail.detected_patterns, "warning": guardrail.warning_message},
+                security_flag=flag, security_detail=guardrail.warning_message,
+            )
         self.store.update_task(task_id, status="running")
         self.store.append_event(task_id, "checklist", details={"dimensions": list(IDS), "goal": "六维评分草稿，待教师确认"})
         try:
-            await asyncio.wait_for(self._loop(task_id), timeout=self.settings.task_timeout)
+            await asyncio.wait_for(self._loop(task_id, guardrail), timeout=self.settings.task_timeout)
         except asyncio.TimeoutError:
             self.fail(task_id, "task_timeout", "任务超过执行时限，请重试或人工批改。")
         except asyncio.CancelledError:
@@ -50,7 +75,7 @@ class AgentRunner:
         except Exception:
             self.fail(task_id, "execution_error", "模型或工具执行异常，请查看执行摘要后重试或人工批改。")
 
-    async def _loop(self, task_id: str):
+    async def _loop(self, task_id: str, guardrail=None):
         task = self.store.get_task(task_id)
         toolbox = Toolbox(task)
         schemas = tool_schemas()
@@ -72,6 +97,15 @@ class AgentRunner:
             response = await self.provider.complete(messages, schemas)
             if not isinstance(response, dict):
                 raise ModelError("model_invalid_response", "模型响应结构不合法。")
+            usage = response.pop("usage", None)
+            if isinstance(usage, dict) and type(usage.get("prompt_tokens")) is int and type(usage.get("completion_tokens")) is int:
+                total = usage.get("total_tokens")
+                self.store.append_event(task_id, "model_usage", details={
+                    "prompt_tokens": usage["prompt_tokens"],
+                    "completion_tokens": usage["completion_tokens"],
+                    "total_tokens": total if type(total) is int else usage["prompt_tokens"] + usage["completion_tokens"],
+                    "cost_cny": usage_cost(usage),
+                })
             calls = response.get("tool_calls") or []
             if not isinstance(calls, list) or not calls:
                 raise ModelError("missing_tool_calls", "模型未完成必需工具调用与校验，请重试或人工批改。")
@@ -131,7 +165,7 @@ class AgentRunner:
                 if name == "validate_draft":
                     current = self.store.get_task(task_id)
                     if result.get("valid"):
-                        draft = result["draft"]
+                        draft = self._apply_guardrail(result["draft"], guardrail)
                         review = {"dimensions": [{"id": d["id"], "level": d["level"], "score": d["score"], "reason": d["reason"], "reviewed": False} for d in draft["dimensions"]], "total": draft["total"]}
                         self.store.transition(task_id, "pending_review", details={"total": draft["total"], "status": "评分草稿，待教师确认"}, status="pending_review", draft=draft, review=review, error=None)
                         return
