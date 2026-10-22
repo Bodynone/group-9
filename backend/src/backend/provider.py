@@ -48,8 +48,9 @@ class ChatProvider:
                 response = await client.post(
                     self.settings.base_url.rstrip("/") + "/chat/completions",
                     headers={"Authorization": "Bearer " + self.settings.api_key},
-                    json={"model": self.settings.model, "messages": messages, "tools": tools,
-                          "tool_choice": "auto", "stream": False, "max_tokens": 8192},
+                    json={"model": self.settings.model, "messages": messages,
+                          **({"tools": tools, "tool_choice": "auto"} if tools else {}),
+                          "stream": False, "max_tokens": 8192},
                 )
             if response.status_code >= 400:
                 message = "模型服务请求失败"

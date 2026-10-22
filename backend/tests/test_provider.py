@@ -36,6 +36,21 @@ def test_openai_compatible_request_and_reasoning_message_round_trip(settings, mo
     assert seen[0]["stream"] is False
 
 
+def test_request_without_tools_omits_tool_choice(settings, monkeypatch):
+    seen = []
+    def handler(request):
+        import json
+        seen.append(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {
+            "role": "assistant", "content": '{"dimensions": [], "total": 0}',
+        }}]})
+    mock_transport(monkeypatch, handler)
+    response = asyncio.run(ChatProvider(settings).complete([{"role": "user", "content": "text"}], []))
+    assert response["content"] == '{"dimensions": [], "total": 0}'
+    assert "tools" not in seen[0]
+    assert "tool_choice" not in seen[0]
+
+
 @pytest.mark.parametrize("status,message,code", [
     (401, "invalid test-key-not-a-secret Bearer test-key-not-a-secret", "model_http_401"),
     (403, "email verification required", "model_http_403"),
