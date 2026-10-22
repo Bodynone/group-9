@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type KeyboardEvent } from "react";
+import Link from "next/link";
 import { BarChart3, BookOpenCheck, Files } from "lucide-react";
 import { BatchUploader } from "@/components/batch-uploader";
 import { ClassDashboard } from "@/components/class-dashboard";
@@ -65,6 +66,7 @@ export default function Home() {
       <header className="site-header app-header">
         <div className="brand"><span className="brand-symbol"><BookOpenCheck size={24} /></span><span>阅见 <span className="brand-divider">/</span> <span className="brand-subtitle">教师工作台</span></span></div>
         <nav className="app-tabs" role="tablist" aria-label="教师工作台视图">{tabs.map((tab, index) => { const Icon = tab.icon; return <button type="button" role="tab" id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`} aria-selected={activeTab === tab.id} tabIndex={activeTab === tab.id ? 0 : -1} className={activeTab === tab.id ? "is-active" : ""} key={tab.id} onClick={() => setActiveTab(tab.id)} onKeyDown={(event) => onTabKeyDown(event, index)}><Icon size={17} /><span>{tab.label}</span></button>; })}</nav>
+        <Link href="/v2" className="brand-subtitle">课程与评分标准 →</Link>
       </header>
       <div id="panel-single" role="tabpanel" aria-labelledby="tab-single" hidden={activeTab !== "single"}><GradingWorkspace selectedTaskId={selectedTaskId} taskOpenRevision={taskOpenRevision} /></div>
       <div id="panel-batch" role="tabpanel" aria-labelledby="tab-batch" hidden={activeTab !== "batch"}><BatchUploader active={activeTab === "batch"} selectedBatchId={selectedBatchId} onSelectBatch={selectBatch} onOpenTask={openTask} onShowAnalytics={() => setActiveTab("analytics")} /></div>

@@ -1,0 +1,230 @@
+{
+  "date": "2026-10-23",
+  "model": "deepseek-v4-flash",
+  "synthetic_samples": true,
+  "teacher_verified": false,
+  "interpretation": "三种教师示例量表的实际模型流程验证；全部保留待复核，不代表正式成绩、教师一致率或完整效果实验。首轮故障与重试均保留。",
+  "physical_http_attempts_first_run": null,
+  "runs": [
+    {
+      "course": "software",
+      "sample": "software-01",
+      "initial_status": "pending_review",
+      "initial_error_code": null,
+      "explicit_retries": 0,
+      "task_id": "fd61565f-42e3-49a9-b281-43c3887332c3",
+      "parent_id": null,
+      "status": "pending_review",
+      "source_text_sha256": "5f8667fb0875a36683030f98b7fb5ac8387832416434a93b99fb6dadc278a190",
+      "rubric_hash": "2193e35faf73bc9a508cea75803bc015cfdc4af1c6bd4d186c1a27567eecba58",
+      "context_hash": "97a07e21920dabfbe6dd55c33bfd09be88952b4e523bfd771eaa8b3523b9da5a",
+      "created_at": "2026-10-22T16:36:04.005143+00:00",
+      "finished_at": "2026-10-22T16:38:38.716787+00:00",
+      "model_calls_final_attempt": 5,
+      "validation_count": 1,
+      "repair_rounds": 0,
+      "total": "100.00",
+      "dimensions": [
+        {
+          "dimension_id": "A",
+          "level_id": "level_100",
+          "score": "15.00",
+          "needs_review": false
+        },
+        {
+          "dimension_id": "B",
+          "level_id": "level_100",
+          "score": "20.00",
+          "needs_review": false
+        },
+        {
+          "dimension_id": "C",
+          "level_id": "level_100",
+          "score": "30.00",
+          "needs_review": false
+        },
+        {
+          "dimension_id": "D",
+          "level_id": "level_100",
+          "score": "15.00",
+          "needs_review": false
+        },
+        {
+          "dimension_id": "E",
+          "level_id": "level_100",
+          "score": "10.00",
+          "needs_review": false
+        },
+        {
+          "dimension_id": "F",
+          "level_id": "level_100",
+          "score": "10.00",
+          "needs_review": false
+        }
+      ],
+      "verified_quote_count": 13,
+      "all_required_tools_called": true,
+      "all_quotes_match_codepoint_slices": true,
+      "usage": [
+        {
+          "prompt_tokens": 3198,
+          "completion_tokens": 88
+        },
+        {
+          "prompt_tokens": 4280,
+          "completion_tokens": 3196
+        },
+        {
+          "prompt_tokens": 8789,
+          "completion_tokens": 851
+        },
+        {
+          "prompt_tokens": 9895,
+          "completion_tokens": 1055
+        },
+        {
+          "prompt_tokens": 11222,
+          "completion_tokens": 1856
+        }
+      ]
+    },
+    {
+      "course": "database",
+      "sample": "database-01",
+      "initial_status": "failed",
+      "initial_error_code": "execution_error",
+      "explicit_retries": 1,
+      "task_id": "3f03856f-f6d6-4121-846c-a82b093c78a7",
+      "parent_id": "3c579295-d39e-4cbf-a8c9-3afc3496fe08",
+      "status": "pending_review",
+      "source_text_sha256": "db792186c7c1203e8afd60184fec1aabee19e2a239165d3489744fb5aeaebadb",
+      "rubric_hash": "840344c6ea65598c06284ed4697b67b2998110a406e33a400447c6ce24833751",
+      "context_hash": "30a300b3045119fe2ffc9756735ec4c008e6440a4cb46b2b7fb967325eb83e0d",
+      "created_at": "2026-10-22T16:40:00.358667+00:00",
+      "finished_at": "2026-10-22T16:41:25.060070+00:00",
+      "model_calls_final_attempt": 4,
+      "validation_count": 1,
+      "repair_rounds": 0,
+      "total": "100.00",
+      "dimensions": [
+        {
+          "dimension_id": "sql_correctness",
+          "level_id": "excellent",
+          "score": "40.00",
+          "needs_review": false
+        },
+        {
+          "dimension_id": "procedure",
+          "level_id": "excellent",
+          "score": "30.00",
+          "needs_review": false
+        },
+        {
+          "dimension_id": "analysis",
+          "level_id": "excellent",
+          "score": "20.00",
+          "needs_review": false
+        },
+        {
+          "dimension_id": "writing",
+          "level_id": "excellent",
+          "score": "10.00",
+          "needs_review": false
+        }
+      ],
+      "verified_quote_count": 7,
+      "all_required_tools_called": true,
+      "all_quotes_match_codepoint_slices": true,
+      "usage": [
+        {
+          "prompt_tokens": 1950,
+          "completion_tokens": 53
+        },
+        {
+          "prompt_tokens": 2673,
+          "completion_tokens": 2072
+        },
+        {
+          "prompt_tokens": 5402,
+          "completion_tokens": 704
+        },
+        {
+          "prompt_tokens": 6327,
+          "completion_tokens": 1459
+        }
+      ]
+    },
+    {
+      "course": "ethics",
+      "sample": "ethics-01",
+      "initial_status": "failed",
+      "initial_error_code": "model_http_429",
+      "explicit_retries": 1,
+      "task_id": "62b4a0bd-129c-48ad-aaae-5d65bb1610f6",
+      "parent_id": "f835a127-7649-4e2e-98c2-f01b8e2f0112",
+      "status": "pending_review",
+      "source_text_sha256": "8312d288599a061eed2ce3ff09ffa2a48f605bfd9444acf19ae08356fa66e92a",
+      "rubric_hash": "a1542bde26e65ce088dca75d28581c2994338602040a1d4f162d551bce2aeff8",
+      "context_hash": "94c400ae53870465fa24e210628fa825402c61180bb756b5a64fcecd00f3f968",
+      "created_at": "2026-10-22T16:42:58.935305+00:00",
+      "finished_at": "2026-10-22T16:43:50.925515+00:00",
+      "model_calls_final_attempt": 4,
+      "validation_count": 1,
+      "repair_rounds": 0,
+      "total": "100.00",
+      "dimensions": [
+        {
+          "dimension_id": "thesis",
+          "level_id": "excellent",
+          "score": "30.00",
+          "needs_review": false
+        },
+        {
+          "dimension_id": "evidence",
+          "level_id": "excellent",
+          "score": "25.00",
+          "needs_review": false
+        },
+        {
+          "dimension_id": "argument",
+          "level_id": "excellent",
+          "score": "20.00",
+          "needs_review": false
+        },
+        {
+          "dimension_id": "counter",
+          "level_id": "excellent",
+          "score": "15.00",
+          "needs_review": false
+        },
+        {
+          "dimension_id": "writing",
+          "level_id": "excellent",
+          "score": "10.00",
+          "needs_review": false
+        }
+      ],
+      "verified_quote_count": 5,
+      "all_required_tools_called": true,
+      "all_quotes_match_codepoint_slices": true,
+      "usage": [
+        {
+          "prompt_tokens": 1913,
+          "completion_tokens": 268
+        },
+        {
+          "prompt_tokens": 2892,
+          "completion_tokens": 1741
+        },
+        {
+          "prompt_tokens": 5201,
+          "completion_tokens": 758
+        },
+        {
+          "prompt_tokens": 6194,
+          "completion_tokens": 1643
+        }
+      ]
+    }
+  ]
+}

@@ -1,2 +1,3 @@
 # Benchmark hashes and Unicode offsets refer to these exact UTF-8/LF bytes.
 samples/benchmark/*.txt text eol=lf
+samples/v2-benchmark/*.txt text eol=lf

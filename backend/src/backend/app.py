@@ -22,15 +22,25 @@ def create_app(settings: Settings | None = None, provider=None, store: Store | N
     provider = provider if provider is not None else ChatProvider(settings)
     runner = AgentRunner(store, provider, settings)
     batch_runner = BatchRunner(store, runner)
+    from .migration import backup_before_v2
+    from .rubric_service import RubricService
+    from .agent_v2 import DynamicRunner
+    from .api_v2 import install
+    backup_before_v2(store)
+    v2_service = RubricService(store)
+    v2_runner = DynamicRunner(v2_service, provider, settings, batch_runner.semaphore)
 
     @asynccontextmanager
     async def lifespan(app):
         store.recover_interrupted()
+        v2_service.recover()
         try:
             yield
         finally:
+            await v2_runner.close()
             await batch_runner.aclose()
             store.recover_interrupted()
+            v2_service.recover()
             if owns_store:
                 store.close()
 
@@ -39,6 +49,9 @@ def create_app(settings: Settings | None = None, provider=None, store: Store | N
     app.state.runner = runner
     app.state.batch_runner = batch_runner
     app.state.settings = settings
+    app.state.v2_service = v2_service
+    app.state.v2_runner = v2_runner
+    install(app, v2_service, v2_runner)
 
     def get(task_id):
         try:

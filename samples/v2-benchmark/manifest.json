@@ -1,0 +1,500 @@
+{
+  "schema_version": "YJ-SPEC-2.0",
+  "reference_status": "not_expert_verified",
+  "assignments": [
+    {
+      "id": "software",
+      "course_name": "软件工程",
+      "title": "软件工程 A–F（2026-10-09）",
+      "instructions": "按A–F任务单评价需求、验收、行为依据、协作和互评。模拟过程记录按表达完整性评价，不冒充实际经历。",
+      "reference_text": "教学用示例标准，非任课教师正式评分规则。",
+      "rubric_file": "rubrics/software.json"
+    },
+    {
+      "id": "database",
+      "course_name": "数据库原理",
+      "title": "数据库实验报告（合成教学示例，待教师核定）",
+      "instructions": "使用匿名合成表 Student(id,name) 和 Enroll(student_id,course,score)。文本报告说明均分查询、无选课者处理、实验步骤、结果和限制。不执行SQL，不以生成的结果冒充运行记录。",
+      "reference_text": "教学用示例标准，非任课教师正式评分规则。",
+      "rubric_file": "rubrics/database.json"
+    },
+    {
+      "id": "ethics",
+      "course_name": "科技伦理",
+      "title": "科技伦理论述（合成教学示例，待教师核定）",
+      "instructions": "论述校园AI助学系统应如何平衡学习支持和学生隐私。明确论点，用可追溯或清楚标为模拟的材料论证，回应反方并说明限制。",
+      "reference_text": "教学用示例标准，非任课教师正式评分规则。",
+      "rubric_file": "rubrics/ethics.json"
+    }
+  ],
+  "samples": [
+    {
+      "id": "software-01",
+      "assignment_id": "software",
+      "file": "software-01.txt",
+      "synthetic": true,
+      "sha256": "5f8667fb0875a36683030f98b7fb5ac8387832416434a93b99fb6dadc278a190",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "software-02",
+      "assignment_id": "software",
+      "file": "software-02.txt",
+      "synthetic": true,
+      "sha256": "32a27fe87e5e2f5af2133937d4ab22931a281e6541213ba54250b481d656ff87",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "software-03",
+      "assignment_id": "software",
+      "file": "software-03.txt",
+      "synthetic": true,
+      "sha256": "b9f4bb1d913b24fe3d47e200754af05d1868fd9b2704dc5c306ca5fb3c0e3fdc",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "software-04",
+      "assignment_id": "software",
+      "file": "software-04.txt",
+      "synthetic": true,
+      "sha256": "d01d4fa0b31cf43813c07940244fe46d95f5bb55d460df1ea27e40911d515c91",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "software-05",
+      "assignment_id": "software",
+      "file": "software-05.txt",
+      "synthetic": true,
+      "sha256": "a55a1488829ce1ec7a87b1b492e8402183a081200e1f04b8792a957a185cbea2",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "software-06",
+      "assignment_id": "software",
+      "file": "software-06.txt",
+      "synthetic": true,
+      "sha256": "e6927342067ab00cab0cfb73cee8706a1b98eef0cfad6c9844b09a8f0d8cd3b1",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "software-07",
+      "assignment_id": "software",
+      "file": "software-07.txt",
+      "synthetic": true,
+      "sha256": "b5ed9cb4fc4f4932704c6850b8108ce83a3a3c3ffa855a2ec5ca6cd06e2f2660",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "software-08",
+      "assignment_id": "software",
+      "file": "software-08.txt",
+      "synthetic": true,
+      "sha256": "270d72f74075ecf96d67f91888a9a68d336e3a6f520e20655daa2680397f135b",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "software-09",
+      "assignment_id": "software",
+      "file": "software-09.txt",
+      "synthetic": true,
+      "sha256": "4d3d6f516690f3934c286c87d08ebd0bd471621abe1569c72a23d286ba37d52f",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "software-10",
+      "assignment_id": "software",
+      "file": "software-10.txt",
+      "synthetic": true,
+      "sha256": "4bf40659223d50bcea9ec90d48269eb47095c44ea1ddccda0ba8f204e5ec9110",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "software-11",
+      "assignment_id": "software",
+      "file": "software-11.txt",
+      "synthetic": true,
+      "sha256": "6c6013b4d94c142237ff974aff0615bd3fa1b7381f2ccdcd0d56966420dff4c6",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "software-12",
+      "assignment_id": "software",
+      "file": "software-12.txt",
+      "synthetic": true,
+      "sha256": "12e5bd338bda3b87a74790e7795605f0d8f7a912223f32ff7e0815b448ed0f4f",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "database-01",
+      "assignment_id": "database",
+      "file": "database-01.txt",
+      "synthetic": true,
+      "sha256": "db792186c7c1203e8afd60184fec1aabee19e2a239165d3489744fb5aeaebadb",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "database-02",
+      "assignment_id": "database",
+      "file": "database-02.txt",
+      "synthetic": true,
+      "sha256": "e3930ab3500c59863be45091c4694c07f833af5a4a0a6858d69756d898fcadd6",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "database-03",
+      "assignment_id": "database",
+      "file": "database-03.txt",
+      "synthetic": true,
+      "sha256": "bc52da5b9d31d3fc839b182e7764b81d748b2030854751715329fa7b70940e6b",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "database-04",
+      "assignment_id": "database",
+      "file": "database-04.txt",
+      "synthetic": true,
+      "sha256": "44d34ab0d46d105ac25c5746612008075faea795a9adb516caceaf37dd30889e",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "database-05",
+      "assignment_id": "database",
+      "file": "database-05.txt",
+      "synthetic": true,
+      "sha256": "8aaac9fbf6a40a655fa9258df7683685bbe3583c8b3534022234bc160673bb69",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "database-06",
+      "assignment_id": "database",
+      "file": "database-06.txt",
+      "synthetic": true,
+      "sha256": "94f7a2399174bf89d7810022a84560b6e20a274673c32e7765179af172d9bf84",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "database-07",
+      "assignment_id": "database",
+      "file": "database-07.txt",
+      "synthetic": true,
+      "sha256": "7d812b9cd36c29166ea9b121e49ac623e2ae73b3e80d09b035caaa7ba9ce01af",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "database-08",
+      "assignment_id": "database",
+      "file": "database-08.txt",
+      "synthetic": true,
+      "sha256": "7294ba8a443be65348e66002005132ac134b2a65780da494b05bb586fbcbe24a",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "database-09",
+      "assignment_id": "database",
+      "file": "database-09.txt",
+      "synthetic": true,
+      "sha256": "fe3325eaa2ead92cf421868c71fdb374ad4d2ea2299d13746735f9406f729d18",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "database-10",
+      "assignment_id": "database",
+      "file": "database-10.txt",
+      "synthetic": true,
+      "sha256": "1cf2f410f177daae95bd330d5a44b85d74f6ff09cf6534e4fc38e03a3c13e39c",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "database-11",
+      "assignment_id": "database",
+      "file": "database-11.txt",
+      "synthetic": true,
+      "sha256": "bbfa61d942bb00546df4812ad16325d2ad08711bd22ab2484a6ff123f5ee7280",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "database-12",
+      "assignment_id": "database",
+      "file": "database-12.txt",
+      "synthetic": true,
+      "sha256": "6629f6aa8cf13e3160f1b58064bc1a1d23d0c81d7dd913c147b7aabc6f7f505f",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "ethics-01",
+      "assignment_id": "ethics",
+      "file": "ethics-01.txt",
+      "synthetic": true,
+      "sha256": "8312d288599a061eed2ce3ff09ffa2a48f605bfd9444acf19ae08356fa66e92a",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "ethics-02",
+      "assignment_id": "ethics",
+      "file": "ethics-02.txt",
+      "synthetic": true,
+      "sha256": "c5e8faebd74c26ee72f1b71f14ecf4526e7a8e87ed38bd244696f97d6a7c3ce6",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "ethics-03",
+      "assignment_id": "ethics",
+      "file": "ethics-03.txt",
+      "synthetic": true,
+      "sha256": "9a42738dc242762159bb54b717b360606bb9cb59329b4d6914d749adc0c98723",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "ethics-04",
+      "assignment_id": "ethics",
+      "file": "ethics-04.txt",
+      "synthetic": true,
+      "sha256": "34e974a09f2e2d7042d371b12cb0ebf7423cd4b09da961aac50c26ba58ad445e",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "ethics-05",
+      "assignment_id": "ethics",
+      "file": "ethics-05.txt",
+      "synthetic": true,
+      "sha256": "81b1078e205738cc69443b9c06aba48b9964b706df9d3bd8fdbdeede045ecca7",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "ethics-06",
+      "assignment_id": "ethics",
+      "file": "ethics-06.txt",
+      "synthetic": true,
+      "sha256": "24beecef7ad3cbfbce294d6bae9cb1ea6298652d745b6235e2f5a522ddb21646",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "ethics-07",
+      "assignment_id": "ethics",
+      "file": "ethics-07.txt",
+      "synthetic": true,
+      "sha256": "a16a24d574225fe2fe8ec8fbb6a3534fe2058da7fe514b68470c7cfeb1131f6d",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "ethics-08",
+      "assignment_id": "ethics",
+      "file": "ethics-08.txt",
+      "synthetic": true,
+      "sha256": "83a1179567e2a2d61496d1acde0e6ae9ee7ed05e670b79fa8a4c664f9ccd1441",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "ethics-09",
+      "assignment_id": "ethics",
+      "file": "ethics-09.txt",
+      "synthetic": true,
+      "sha256": "a8385e39841ec954efe71bfa9ebcece06eb9da92bd5e0b37f7d90879a36f949c",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "ethics-10",
+      "assignment_id": "ethics",
+      "file": "ethics-10.txt",
+      "synthetic": true,
+      "sha256": "70e9378ab872656f892dddc59fb2ba681cf46a8c1d6563492d175d976de47e3f",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "ethics-11",
+      "assignment_id": "ethics",
+      "file": "ethics-11.txt",
+      "synthetic": true,
+      "sha256": "a1c04fe71f10620f736472879642f47431d149124488a678d48a231cb1141e46",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    },
+    {
+      "id": "ethics-12",
+      "assignment_id": "ethics",
+      "file": "ethics-12.txt",
+      "synthetic": true,
+      "sha256": "c303bf00af985d088943b6397a1b4ce8aa1680b99518688464b41990b139f087",
+      "reference": {
+        "status": "pending_independent_review",
+        "reviewer_a": null,
+        "reviewer_b": null,
+        "adjudicated_levels": null
+      }
+    }
+  ]
+}

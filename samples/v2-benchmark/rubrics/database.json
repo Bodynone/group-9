@@ -1,0 +1,76 @@
+{
+  "dimensions": [
+    {
+      "criteria": {
+        "basic": "主要查询成立，局部边界遗漏",
+        "excellent": "查询齐全、关联和聚合逻辑与给定数据一致，说明边界",
+        "missing": "未提供查询正确性内容",
+        "partial": "只解释部分查询，关键逻辑缺项"
+      },
+      "description": "基于报告中SQL及结果说明判断；本系统不执行SQL",
+      "id": "sql_correctness",
+      "max_score": "40.00",
+      "name": "SQL 正确性"
+    },
+    {
+      "criteria": {
+        "basic": "主要过程完整，少量步骤缺说明",
+        "excellent": "环境、数据、操作步骤齐全可复现",
+        "missing": "未提供实验过程",
+        "partial": "步骤零散，无法完整复现"
+      },
+      "description": "关键操作与可复现性",
+      "id": "procedure",
+      "max_score": "30.00",
+      "name": "实验过程"
+    },
+    {
+      "criteria": {
+        "basic": "结果对应但分析深度不足",
+        "excellent": "结果有对应、原因和限制分析",
+        "missing": "未提供结果分析",
+        "partial": "主要复述现象，依据不足"
+      },
+      "description": "分析应对应输入、输出并说明限制",
+      "id": "analysis",
+      "max_score": "20.00",
+      "name": "结果分析"
+    },
+    {
+      "criteria": {
+        "basic": "整体清楚，局部不一致",
+        "excellent": "结构清楚、术语一致且来源交代完整",
+        "missing": "没有可判读的报告",
+        "partial": "表达或结构明显妨碍理解"
+      },
+      "description": "结构、术语和引用",
+      "id": "writing",
+      "max_score": "10.00",
+      "name": "表达规范"
+    }
+  ],
+  "levels": [
+    {
+      "id": "excellent",
+      "label": "充分达成",
+      "percent": "100.00"
+    },
+    {
+      "id": "basic",
+      "label": "基本达成",
+      "percent": "70.00"
+    },
+    {
+      "id": "partial",
+      "label": "部分达成",
+      "percent": "30.00"
+    },
+    {
+      "id": "missing",
+      "label": "未提供",
+      "percent": "0.00"
+    }
+  ],
+  "title": "数据库实验报告（合成教学示例，待教师核定）",
+  "total_score": "100.00"
+}

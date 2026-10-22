@@ -1,0 +1,88 @@
+{
+  "dimensions": [
+    {
+      "criteria": {
+        "basic": "有论点，边界不完整",
+        "excellent": "论点明确，有界定与限制",
+        "missing": "未提出论点",
+        "partial": "只有主题或口号"
+      },
+      "description": "明确论点及适用边界",
+      "id": "thesis",
+      "max_score": "30.00",
+      "name": "论点与范围"
+    },
+    {
+      "criteria": {
+        "basic": "有相关材料，来源或支持关系有遗漏",
+        "excellent": "材料可追溯，明确来源性质，支持论点",
+        "missing": "未提供依据",
+        "partial": "只有结论而依据薄弱"
+      },
+      "description": "区分模拟材料、事实和推断",
+      "id": "evidence",
+      "max_score": "25.00",
+      "name": "材料依据"
+    },
+    {
+      "criteria": {
+        "basic": "主要推理成立，局部跳跃",
+        "excellent": "推理链清楚，说明因果限制",
+        "missing": "未提供论证",
+        "partial": "主要重复观点，缺少推理"
+      },
+      "description": "连接理由、证据和结论",
+      "id": "argument",
+      "max_score": "20.00",
+      "name": "论证逻辑"
+    },
+    {
+      "criteria": {
+        "basic": "有反方观点，回应不深入",
+        "excellent": "有具体反方理由和回应，承认未解决问题",
+        "missing": "未讨论反方",
+        "partial": "只提异议，缺少回应"
+      },
+      "description": "公平呈现异议并作具体回应",
+      "id": "counter",
+      "max_score": "15.00",
+      "name": "反方与回应"
+    },
+    {
+      "criteria": {
+        "basic": "整体清楚，局部术语不统一",
+        "excellent": "结构与表达清楚，引用性质明确",
+        "missing": "无可判读的文本",
+        "partial": "表达或结构明显妨碍理解"
+      },
+      "description": "结构、术语和引述",
+      "id": "writing",
+      "max_score": "10.00",
+      "name": "表达与规范"
+    }
+  ],
+  "levels": [
+    {
+      "id": "excellent",
+      "label": "充分达成",
+      "percent": "100.00"
+    },
+    {
+      "id": "basic",
+      "label": "基本达成",
+      "percent": "70.00"
+    },
+    {
+      "id": "partial",
+      "label": "部分达成",
+      "percent": "30.00"
+    },
+    {
+      "id": "missing",
+      "label": "未提供",
+      "percent": "0.00"
+    }
+  ],
+  "title": "科技伦理论述（合成教学示例，待教师核定）",
+  "total_score": "100.00"
+}

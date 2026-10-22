@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test:e2e": "node tests/e2e.mjs",
     "test:batch-e2e": "node tests/batch-e2e.mjs",
-    "test:batch-integration": "node tests/batch-integration.mjs"
+    "test:batch-integration": "node tests/batch-integration.mjs",
+    "test:v2-e2e": "node tests/v2-e2e.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

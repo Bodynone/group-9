@@ -69,6 +69,8 @@ class AgentRunner:
             self.fail(task_id, "interrupted", "任务运行中断，请重试或人工批改。")
             raise
         except ModelError as exc:
+            if exc.transport:
+                self.store.append_event(task_id, "model_transport", details=exc.transport)
             self.fail(task_id, exc.code, exc.message)
         except ToolError as exc:
             self.fail(task_id, exc.code, exc.message, exc.tool)
@@ -98,6 +100,9 @@ class AgentRunner:
             if not isinstance(response, dict):
                 raise ModelError("model_invalid_response", "模型响应结构不合法。")
             usage = response.pop("usage", None)
+            transport = response.pop("_transport", None)
+            if transport:
+                self.store.append_event(task_id, "model_transport", details=transport)
             if isinstance(usage, dict) and all(type(usage.get(key)) is int and usage[key] >= 0 for key in ("prompt_tokens", "completion_tokens")):
                 total = usage.get("total_tokens")
                 minimum_total = usage["prompt_tokens"] + usage["completion_tokens"]

@@ -95,6 +95,8 @@ class Store:
         }
 
     def _ensure_writable(self, task: dict):
+        if task.get("api_version") == 2:
+            raise ValueError("该任务须通过 v2 接口及冻结快照复核")
         if task["rubric_version"] != VERSION:
             raise ValueError("历史量表任务仅可查看，请按当前量表重新批改")
         if task["status"] == "confirmed":
@@ -377,7 +379,7 @@ class Store:
     @staticmethod
     def _csv_text(value: str) -> str:
         # Spreadsheet programs interpret these prefixes as formulas even in quoted CSV cells.
-        if value.startswith(("\t", "\r", "\n")) or value.lstrip(" \t\r\n").startswith(("=", "+", "-", "@")):
+        if value.startswith(("\t", "\r", "\n")) or value.lstrip().startswith(("=", "+", "-", "@")):
             return "'" + value
         return value
 

@@ -101,3 +101,61 @@ def test_missing_configuration_never_attempts_network(settings, monkeypatch):
     with pytest.raises(ModelError) as captured:
         asyncio.run(ChatProvider(replace(settings, api_key="")).complete([], tool_schemas()))
     assert captured.value.code == "model_not_configured"
+
+
+def test_complete_endpoint_is_not_appended_twice(settings, monkeypatch):
+    configured = replace(settings, base_url="https://model.invalid/v1/chat/completions/")
+
+    def handler(request):
+        assert str(request.url) == "https://model.invalid/v1/chat/completions"
+        return httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": "ok"}}]})
+
+    mock_transport(monkeypatch, handler)
+    assert asyncio.run(ChatProvider(configured).complete([], []))["content"] == "ok"
+
+
+def test_rate_limit_backoff_keeps_new_usage_audit(settings, monkeypatch):
+    attempts = []
+    delays = []
+
+    async def sleep(delay):
+        delays.append(delay)
+
+    def handler(request):
+        attempts.append(request)
+        if len(attempts) < 3:
+            return httpx.Response(429, json={"error": {"message": "rate limited"}})
+        return httpx.Response(200, json={
+            "choices": [{"message": {"role": "assistant", "content": "ok"}}],
+            "usage": {"prompt_tokens": 12, "completion_tokens": 3, "total_tokens": 15},
+        })
+
+    monkeypatch.setattr("backend.provider.asyncio.sleep", sleep)
+    mock_transport(monkeypatch, handler)
+    result = asyncio.run(ChatProvider(settings).complete([], []))
+    assert len(attempts) == 3
+    assert delays == [6, 12]
+    assert result["usage"]["total_tokens"] == 15
+    assert result["_transport"] == {"attempts": 3, "rate_limits": 2}
+
+
+def test_rate_limit_stops_and_redacts_after_five_attempts(settings, monkeypatch):
+    attempts = []
+    delays = []
+
+    async def sleep(delay):
+        delays.append(delay)
+
+    def handler(request):
+        attempts.append(request)
+        return httpx.Response(429, json={"error": {"message": "rate limited " + settings.api_key}})
+
+    monkeypatch.setattr("backend.provider.asyncio.sleep", sleep)
+    mock_transport(monkeypatch, handler)
+    with pytest.raises(ModelError) as captured:
+        asyncio.run(ChatProvider(settings).complete([], []))
+    assert len(attempts) == 5
+    assert delays == [6, 12, 18, 24]
+    assert captured.value.code == "model_http_429"
+    assert captured.value.transport == {"attempts": 5, "rate_limits": 5}
+    assert settings.api_key not in captured.value.message

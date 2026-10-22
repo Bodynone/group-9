@@ -16,16 +16,20 @@ from backend.provider import ModelError
 from backend.storage import Store
 
 from scripted_provider import DIMENSIONS, ScriptedProvider, anchors
+from dynamic_provider import DynamicTestProvider
 
 
 class UiTestProvider:
     def __init__(self):
+        self.dynamic = DynamicTestProvider()
         self.providers = {}
         self.failed_inputs = set()
         self.failed_tasks = set()
 
     async def complete(self, messages, tools):
         metadata = json.loads(messages[1]["content"])
+        if "rubric_hash" in metadata:
+            return await self.dynamic.complete(messages, tools)
         task_id = metadata["task_id"]
         text = metadata["assignment_text"]
         input_version = metadata["input_version"]
