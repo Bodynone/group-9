@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "阅见 · 作业批改工作台",
-  description: "有据可查的六维评分草稿，由教师复核并确认。",
+  title: "阅见 · 教师工作台",
+  description: "单份复核、批量作业处理与班级学情诊断。",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

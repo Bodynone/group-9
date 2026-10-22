@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowDownToLine, ArrowRight, BookOpenCheck, Check, CheckCircle2, ChevronDown,
+  ArrowDownToLine, ArrowRight, Check, CheckCircle2, ChevronDown,
   CircleAlert, ClipboardCheck, FileText, Fingerprint, LoaderCircle, LocateFixed,
   RotateCcw, ShieldCheck, Sparkles,
 } from "lucide-react";
@@ -35,7 +35,7 @@ function criteriaText(criteria: Rubric["dimensions"][number]["criteria"]) {
   return Object.entries(criteria).map(([key, value]) => `${key}：${value}`).join("\n");
 }
 
-export function GradingWorkspace() {
+export function GradingWorkspace({ selectedTaskId = null, taskOpenRevision = 0 }: { selectedTaskId?: string | null; taskOpenRevision?: number }) {
   const [rubric, setRubric] = useState<Rubric | null>(null);
   const [text, setText] = useState("");
   const [task, setTask] = useState<Task | null>(null);
@@ -86,6 +86,28 @@ export function GradingWorkspace() {
     const startup = setTimeout(() => { void loadRubric(); void restore(); }, 0);
     return () => { cancelled = true; clearTimeout(startup); };
   }, [loadRubric, receiveTask]);
+
+  useEffect(() => {
+    if (!selectedTaskId) return;
+    let cancelled = false;
+    const startup = setTimeout(() => {
+      const generation = ++generationRef.current;
+      setRestoring(true);
+      setTask(null);
+      setText("");
+      setReview([]);
+      setDirty(false);
+      setNotice(null);
+      void request<Task>(`/api/tasks/${encodeURIComponent(selectedTaskId)}`).then((next) => {
+        if (!cancelled && generation === generationRef.current) receiveTask(next);
+      }).catch((error: unknown) => {
+        if (!cancelled && generation === generationRef.current) setNotice(`作业读取失败：${errorMessage(error)}`);
+      }).finally(() => {
+        if (!cancelled && generation === generationRef.current) setRestoring(false);
+      });
+    }, 0);
+    return () => { cancelled = true; clearTimeout(startup); };
+  }, [selectedTaskId, taskOpenRevision, receiveTask]);
 
   useEffect(() => {
     if (!task || !rubric || historical || (task.status !== "queued" && task.status !== "running")) return;
@@ -207,12 +229,7 @@ export function GradingWorkspace() {
   const total = dirty ? null : task?.review?.total ?? task?.draft?.total;
 
   return (
-    <div className="workspace-shell">
-      <header className="site-header">
-        <div className="brand"><span className="brand-symbol"><BookOpenCheck size={24} /></span><span>阅见 <span className="brand-divider">/</span> <span className="brand-subtitle">教师工作台</span></span></div>
-        <div className="header-caption"><span className="live-dot" />单份作业批改</div>
-      </header>
-      <main className="workspace">
+    <main className="workspace">
         <section className="page-intro">
           <div><div className="eyebrow">有据可查 · 教师把关</div><h1>把每一分，落在证据上。</h1><p>六维评分建议与原文一起复核，由您完成最终确认。</p></div>
           <div className="process-strip" aria-label="批改步骤">
@@ -281,7 +298,6 @@ export function GradingWorkspace() {
           </section>
         </div>
         <footer className="workspace-footer"><span>阅见 · 每次批改都有依据</span><span>单份作业 / 固定量表 / 教师确认</span></footer>
-      </main>
-    </div>
+    </main>
   );
 }
