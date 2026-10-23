@@ -33,7 +33,7 @@ async function waitTask(id) {
   throw new Error('test task did not finish');
 }
 async function tickAll() {
-  for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
+  for (const checkbox of await page.getByRole('region', { name: '动态评分与复核' }).getByRole('checkbox').all()) await checkbox.check();
 }
 
 try {
@@ -58,14 +58,16 @@ try {
   await page.getByRole('button', { name: '保存当前配置并发布' }).click();
   assert.equal((await (await publishRubric).json()).state, 'published');
   await ready();
-  await page.getByLabel('作业标题', { exact: true }).fill(`查询实验-${marker}`);
+  assert.equal(await page.getByLabel('任务标题', { exact: true }).isVisible(), false, 'New-task form starts collapsed');
+  await page.getByText('新建作业任务', { exact: true }).click();
+  await page.getByLabel('任务标题', { exact: true }).fill(`查询实验-${marker}`);
   await page.getByLabel('任务要求', { exact: true }).fill('说明关联查询、实验步骤、结果分析与文本规范。不执行SQL。');
-  await page.getByLabel('绑定量表版本').selectOption(versionId);
+  await page.getByLabel('本次任务使用的评分标准').selectOption(versionId);
   const createAssignment = page.waitForResponse(response => response.url().endsWith('/api/v2/assignments') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: '创建作业草稿' }).click();
+  await page.getByRole('button', { name: '保存任务草稿', exact: true }).click();
   const assignment = await (await createAssignment).json();
   await ready();
-  await page.getByRole('button', { name: '发布当前作业' }).click();
+  await page.getByRole('button', { name: '发布任务，允许提交学生文本' }).click();
   await page.getByText('作业已发布，可以提交单份或批量文本。').waitFor();
   await page.getByLabel('作业正文', { exact: true }).fill('🧪 匿名实验报告\n查询说明：LEFT JOIN保留无选课学生，AVG排除NULL；给定80和100，均分为90。\n实验过程：创建合成数据、查询、分析并说明限制。');
   const createTask = page.waitForResponse(response => response.url().endsWith('/api/v2/tasks') && response.request().method() === 'POST');
@@ -144,6 +146,44 @@ try {
   assert.equal(await (await context.request.get(`${base}/api/v2/tasks/${task.id}/export`)).text(), originalExport);
   assert.equal((await get(`assignments/${assignment.id}`)).rubric_version_id, versionId);
   console.log('PASS new version never changes prior assignment, task snapshot or immutable export');
+
+  async function manage(label) {
+    await page.getByRole('button', { name: label, exact: true }).click();
+    const dialog = page.getByRole('alertdialog', { name: '确认量表管理操作' });
+    await dialog.getByRole('button', { name: '确认' + label, exact: true }).click();
+    await dialog.waitFor({ state: 'hidden' });
+    await ready();
+  }
+  await manage('归档整个量表系列');
+  assert.equal((await get(`rubric-versions/${versionId}`)).rubric_archived, true);
+  await page.getByLabel('显示已归档量表').uncheck();
+  assert.equal(await page.getByLabel('查看量表版本').locator(`option[value="${versionId}"]`).count(), 0);
+  await page.getByText('新建作业任务', { exact: true }).click();
+  assert.equal(await page.getByLabel('本次任务使用的评分标准').locator(`option[value="${versionId}"]`).count(), 0);
+  await page.getByText('新建作业任务', { exact: true }).click();
+  await page.getByLabel('显示已归档量表').check();
+  await page.getByLabel('查看量表版本').selectOption(versionId);
+  await ready();
+  await manage('恢复整个量表系列');
+  await manage('归档当前版本');
+  assert.equal((await get(`rubric-versions/${versionId}`)).archived, true);
+  await manage('恢复当前版本');
+  assert.equal(await (await context.request.get(`${base}/api/v2/tasks/${task.id}/export`)).text(), originalExport);
+  assert.equal((await get(`assignments/${assignment.id}`)).rubric_version_id, versionId);
+
+  await page.getByLabel('新量表名称').fill(`待清理标准-${marker}`);
+  const temporaryResponse = page.waitForResponse(r => r.url().endsWith('/api/v2/rubrics') && r.request().method() === 'POST');
+  await page.getByRole('button', { name: '新建评分量表', exact: true }).click();
+  const temporary = await (await temporaryResponse).json();
+  await ready();
+  await page.getByRole('button', { name: '删除当前草稿', exact: true }).click();
+  await page.getByRole('button', { name: '取消操作', exact: true }).click();
+  assert.equal((await context.request.get(`${base}/api/v2/rubric-versions/${temporary.draft.id}`)).status(), 200);
+  await manage('删除当前草稿');
+  assert.equal((await context.request.get(`${base}/api/v2/rubric-versions/${temporary.draft.id}`)).status(), 404);
+  assert.equal(await page.getByLabel('查看量表版本').locator(`option[value="${temporary.draft.id}"]`).count(), 0);
+  await page.screenshot({ path: resolve(resultDir, 'rubric-lifecycle.png'), fullPage: true });
+  console.log('PASS draft deletion/cancel, version/series archive+restore, new-binding filters and immutable history');
 
   const template = (await get(`rubric-versions/${versionId}`)).definition;
   async function post(path, body) {

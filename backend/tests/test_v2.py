@@ -237,7 +237,7 @@ def test_provider_global_request_budget_and_backoff_release(settings, monkeypatc
 def test_v2_http_validation_routes_and_scheduling(settings, store):
     app = create_app(settings=settings, store=store, provider=DynamicTestProvider())
     with TestClient(app) as client:
-        assert sum(len(operations) for path, operations in app.openapi()["paths"].items() if path.startswith("/api/v2/")) == 25
+        assert sum(len(operations) for path, operations in app.openapi()["paths"].items() if path.startswith("/api/v2/")) == 30
         assert client.post("/api/v2/courses", json={"name": "课程", "unknown": True}).status_code == 422
         course = client.post("/api/v2/courses", json={"name": "课程"}).json()
         draft = client.post("/api/v2/rubrics", json={"title": "标准"}).json()["draft"]

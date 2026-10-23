@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AssignmentManager } from "@/components/assignment-manager";
 import { RubricEditor } from "@/components/rubric-editor";
+import { RubricLifecycle, type RubricAction } from "@/components/rubric-lifecycle";
 import { databaseExample, v2, versionFields, type AnalyticsV2, type Assignment, type BatchV2, type Course, type Definition, type Evidence, type Review, type RubricVersion, type TaskV2 } from "@/lib/grading-v2";
 
 const statusName: Record<string, string> = { queued: "排队中", running: "正在批改", pending_review: "待教师复核", confirmed: "已确认", failed: "失败", completed: "草稿处理结束", partial_failed: "部分失败" };
@@ -27,6 +28,7 @@ function Chart({ data }: { data: AnalyticsV2 }) {
 export function CourseWorkspace() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [versions, setVersions] = useState<RubricVersion[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [batches, setBatches] = useState<Pick<BatchV2, "id" | "name" | "assignment_id">[]>([]);
   const [courseId, setCourseId] = useState("");
@@ -51,7 +53,7 @@ export function CourseWorkspace() {
 
   const reload = useCallback(async () => {
     const [c, r, a, b] = await Promise.all([
-      v2<{ items: Course[] }>("courses?limit=100"), v2<{ items: { versions: RubricVersion[] }[] }>("rubrics?limit=100"),
+      v2<{ items: Course[] }>("courses?limit=100"), v2<{ items: { versions: RubricVersion[] }[] }>("rubrics?limit=100&include_archived=true"),
       v2<{ items: Assignment[] }>("assignments?limit=100"), v2<{ items: BatchV2[] }>("batches?limit=100"),
     ]);
     setCourses(c.items); setVersions(r.items.flatMap(row => row.versions)); setAssignments(a.items); setBatches(b.items);
@@ -95,7 +97,7 @@ export function CourseWorkspace() {
 
   async function act(work: () => Promise<void>) {
     setBusy(true); setError(""); setNotice("");
-    try { await work(); } catch (e) { setError(e instanceof Error ? e.message : "请求失败，请重试"); } finally { setBusy(false); }
+    try { await work(); return true; } catch (e) { setError(e instanceof Error ? e.message : "请求失败，请重试"); return false; } finally { setBusy(false); }
   }
   async function submitOnce<T>(path: string, body?: unknown): Promise<T> {
     const signature = path + JSON.stringify(body);
@@ -120,6 +122,18 @@ export function CourseWorkspace() {
     }
     await reload();
   }
+  async function manageRubric(action: RubricAction) {
+    if (!version) return false;
+    return act(async () => {
+      const series = action.endsWith("series");
+      const path = series ? `rubrics/${version.rubric_id}` : `rubric-versions/${version.id}`;
+      await v2(action === "delete" ? path : `${path}/${action.split("-")[0]}`, action === "delete" ? "DELETE" : "POST",
+        { expected_revision: series ? version.rubric_revision : version.revision });
+      await reload();
+      if (action === "delete") { setVersion(null); setDefinition(null); setNotice("量表草稿已删除，历史评分未改动。"); }
+      else { setShowArchived(true); await selectVersion(version.id); setNotice(action.startsWith("archive") ? "已归档，已有作业和评分记录保持不变。" : "已恢复，请按版本状态选择使用。"); }
+    });
+  }
   function editReview(index: number, fields: Partial<Review>) {
     setReview(review.map((row, i) => i === index ? { ...row, ...fields, reviewed: fields.reviewed ?? false } : row));
     setDirty(true);
@@ -141,17 +155,20 @@ export function CourseWorkspace() {
           <form onSubmit={e => { e.preventDefault(); const title = String(new FormData(e.currentTarget).get("title")); void act(async () => { const value = await v2<{ draft: RubricVersion }>("rubrics", "POST", { title }); setVersion(value.draft); setDefinition(value.draft.definition); await reload(); }); }}>
             <label>新量表名称<input name="title" required maxLength={200} placeholder="例如：数据库实验报告" /></label><button disabled={busy} type="submit">新建评分量表</button>
           </form>
-          <label>查看量表版本<select value={version?.id || ""} onChange={e => void act(() => selectVersion(e.target.value))}><option value="">请选择量表</option>{versions.map(v => <option key={v.id} value={v.id}>{v.definition.title} · v{v.version_no} · {v.state === "published" ? "已发布" : "草稿"}</option>)}</select></label>
-          {version?.state === "published" && <button disabled={busy} type="button" onClick={() => void act(async () => { const value = await v2<RubricVersion>(`rubrics/${version.rubric_id}/versions`, "POST", { source_version_id: version.id }); setVersion(value); setDefinition(value.definition); await reload(); })}>复制为新版本</button>}
+          <label className="v2-checkbox"><input type="checkbox" checked={showArchived} disabled={busy} onChange={e => { setShowArchived(e.target.checked); if (!e.target.checked && (version?.archived || version?.rubric_archived)) { setVersion(null); setDefinition(null); } }} />显示已归档量表</label>
+          <label>查看量表版本<select disabled={busy} value={version?.id || ""} onChange={e => void act(() => selectVersion(e.target.value))}><option value="">请选择量表</option>{versions.filter(v => showArchived || (!v.archived && !v.rubric_archived)).map(v => <option key={v.id} value={v.id}>{v.definition.title} · v{v.version_no} · {v.state === "published" ? "已发布" : "草稿"}{v.archived || v.rubric_archived ? " · 已归档" : ""}</option>)}</select></label>
+          {version?.state === "published" && <button disabled={busy || version.archived || version.rubric_archived} type="button" onClick={() => void act(async () => { const value = await v2<RubricVersion>(`rubrics/${version.rubric_id}/versions`, "POST", { source_version_id: version.id }); setVersion(value); setDefinition(value.definition); await reload(); })}>复制为新版本</button>}
+          {version && <RubricLifecycle key={version.id} version={version} busy={busy} onAction={manageRubric} />}
         </section>
         {version && definition && <RubricEditor version={version} definition={definition} onChange={setDefinition} busy={busy} onSave={() => void act(() => saveVersion())} onPublish={() => void act(() => saveVersion(true))} onExample={() => { setDefinition(structuredClone(databaseExample)); setNotice("已填入示例，尚未保存。请按课程要求修改，并由教师确认标准。"); }} />}
         <AssignmentManager courses={courses} assignments={assignments} versions={versions} courseId={courseId} assignmentId={assignmentId} onCourse={id => { setCourseId(id); setAssignmentId(""); }} onAssignment={setAssignmentId} busy={busy}
-          onCreate={form => void act(async () => { const value = await v2<Assignment>("assignments", "POST", { course_id: courseId, title: form.get("title"), instructions: form.get("instructions"), reference_text: form.get("reference_text"), rubric_version_id: form.get("rubric_version_id") }); await reload(); setAssignmentId(value.id); })}
-          onSave={form => void act(async () => { if (!currentAssignment) return; await v2(`assignments/${assignmentId}`, "PATCH", { expected_revision: currentAssignment.revision, title: form.get("title"), instructions: form.get("instructions"), reference_text: form.get("reference_text"), rubric_version_id: form.get("rubric_version_id") }); await reload(); setNotice("作业草稿已保存，尚未发布。"); })}
+          onCreate={form => act(async () => { const value = await v2<Assignment>("assignments", "POST", { course_id: courseId, title: form.get("title"), instructions: form.get("instructions"), reference_text: form.get("reference_text"), rubric_version_id: form.get("rubric_version_id") }); await reload(); setAssignmentId(value.id); setNotice("任务草稿已保存，发布后才能提交学生文本；尚未开始AI批改。"); })}
+          onSave={form => void act(async () => { if (!currentAssignment) return; await v2(`assignments/${assignmentId}`, "PATCH", { expected_revision: currentAssignment.revision, title: form.get("title"), instructions: form.get("instructions"), reference_text: form.get("reference_text"), rubric_version_id: form.get("rubric_version_id") }); await reload(); setNotice("任务修改已保存，尚未发布。"); })}
           onPublish={() => void act(async () => { if (!currentAssignment) return; await v2(`assignments/${assignmentId}/publish`, "POST", { expected_revision: currentAssignment.revision }); await reload(); setNotice("作业已发布，可以提交单份或批量文本。"); })} />
       </div>
       <div>
-        <section className="v2-card"><h2>4. 提交匿名文本</h2><p>当前作业：{currentAssignment?.title || "请先在左侧选择已发布作业"}</p>
+        <section className="v2-card"><h2>4. 提交学生作业文本</h2><p>本次批改任务：{currentAssignment?.title || "请先在左侧选择已发布的作业任务"}</p>
+          <p>这里填写学生实际提交的答案，AI将依据左侧任务要求和绑定标准生成评分草稿。</p>
           <label>匿名提交号<input value={label} onChange={e => setLabel(e.target.value)} maxLength={200} /></label>
           <label>作业正文<textarea rows={9} value={source} onChange={e => setSource(e.target.value)} placeholder="粘贴文本前请去除姓名、学号等身份信息" /></label>
           <button className="v2-primary" disabled={!canSubmit || !source.trim()} onClick={() => void act(async () => { const value = await submitOnce<TaskV2>("tasks", { assignment_id: assignmentId, submission_label: label, text: source }); loadTask(value); })}>按当前作业标准生成草稿</button>

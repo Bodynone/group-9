@@ -6,6 +6,7 @@ export type Definition = {
 export type RubricVersion = {
   id: string; rubric_id: string; state: "draft" | "published"; revision: number; version_no: number;
   definition: Definition; content_hash: string | null; publishable: boolean;
+  archived?: boolean; rubric_archived?: boolean; rubric_revision?: number;
   total_score: string; field_errors: { field: string; message: string }[];
 };
 export type Course = { id: string; name: string };

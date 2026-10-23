@@ -61,21 +61,58 @@ class RubricService:
         row = self.db.execute(f"SELECT body FROM {table} WHERE id=?", (identifier,)).fetchone()
         if row is None:
             raise V2Error("NOT_FOUND", "对象不存在", 404)
-        return json.loads(row[0])
+        obj = json.loads(row[0])
+        if table == "rubric_versions" and obj.get("deleted_at"):
+            raise V2Error("NOT_FOUND", "量表草稿已删除", 404)
+        return obj
 
     def put(self, table, obj):
         self.db.execute(f"INSERT INTO {table} VALUES (?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body", (obj["id"], canonical(obj)))
         return obj
 
-    def list(self, table, limit=20, offset=0, **filters):
+    def list(self, table, limit=20, offset=0, include_archived=False, **filters):
         with self.store._snapshot():
             items = [json.loads(row[0]) for row in self.db.execute(f"SELECT body FROM {table} ORDER BY rowid DESC")]
             items = [item for item in items if all(value is None or item.get(key) == value for key, value in filters.items())]
             if table == "rubrics":
                 versions = [json.loads(row[0]) for row in self.db.execute("SELECT body FROM rubric_versions")]
                 for item in items:
-                    item["versions"] = [version for version in versions if version["rubric_id"] == item["id"]]
+                    item["revision"] = item.get("revision", 1)
+                    item["archived"] = bool(item.get("archived"))
+                    item["versions"] = [self.describe(version) for version in versions
+                                        if version["rubric_id"] == item["id"] and not version.get("deleted_at")
+                                        and (include_archived or not (item["archived"] or version.get("archived")))]
+                items = [item for item in items if item["versions"] and (include_archived or not item["archived"])]
             return {"total": len(items), "items": items[offset:offset + limit]}
+
+    def require_active(self, version):
+        if version.get("archived") or self.get("rubrics", version["rubric_id"]).get("archived"):
+            raise V2Error("RUBRIC_ARCHIVED", "量表已归档，请恢复后用于新任务配置")
+
+    def lifecycle(self, identifier, expected, archived, series=False):
+        table = "rubrics" if series else "rubric_versions"
+        with self.store.transaction():
+            obj = self.get(table, identifier)
+            obj.setdefault("revision", 1)
+            self.revision(obj, expected, draft=False)
+            obj.update(archived=archived, revision=expected + 1)
+            self.put(table, obj)
+            return obj if series else self.describe(obj)
+
+    def delete_draft(self, identifier, expected):
+        with self.store.transaction():
+            obj = self.get("rubric_versions", identifier)
+            self.revision(obj, expected)
+            # Keep a tombstone so deleting a draft never reuses its version number.
+            for table, field in (("assignments", "rubric_version_id"), ("task_contexts", "rubric_version_id"),
+                                 ("tasks", "rubric_version"), ("records", "rubric_version")):
+                for (raw,) in self.db.execute(f"SELECT body FROM {table}"):
+                    body = json.loads(raw)
+                    if body.get(field) == identifier or body.get("task", {}).get(field) == identifier:
+                        raise V2Error("RUBRIC_IN_USE", "草稿已被作业或评分记录引用，请先调整绑定；已有评分记录不能删除")
+            obj.update(deleted_at=now(), revision=expected + 1)
+            self.put("rubric_versions", obj)
+            return {"id": identifier, "deleted": True}
 
     @staticmethod
     def nonblank(*texts):
@@ -90,7 +127,15 @@ class RubricService:
     def new_rubric(self, title, source_version_id=None):
         self.nonblank(title)
         with self.store.transaction():
-            source = self.get("rubric_versions", source_version_id or "af-2026-10-09-v1")
+            if source_version_id is None:
+                candidates = [json.loads(row[0]) for row in self.db.execute("SELECT body FROM rubric_versions ORDER BY rowid")]
+                source_version_id = next((v["id"] for v in candidates if v["state"] == "published"
+                                          and not v.get("deleted_at") and not v.get("archived")
+                                          and not self.get("rubrics", v["rubric_id"]).get("archived")), None)
+                if source_version_id is None:
+                    raise V2Error("RUBRIC_ARCHIVED", "暂无可用的已发布标准，请先恢复一份归档量表")
+            source = self.get("rubric_versions", source_version_id)
+            self.require_active(source)
             if source["state"] != "published":
                 raise V2Error("RUBRIC_NOT_PUBLISHED", "只能复制已发布量表")
             rubric = self.put("rubrics", {"id": str(uuid4()), "title": title, "created_at": now()})
@@ -103,18 +148,20 @@ class RubricService:
     def copy_version(self, rubric_id, source_version_id):
         with self.store.transaction():
             source = self.get("rubric_versions", source_version_id)
+            self.require_active(source)
             versions = [json.loads(row[0]) for row in self.db.execute("SELECT body FROM rubric_versions")]
             own = [version for version in versions if version["rubric_id"] == rubric_id]
             if source["state"] != "published" or source["rubric_id"] != rubric_id:
                 raise V2Error("VERSION_MISMATCH", "只能从本系列发布版本复制")
-            if any(version["state"] == "draft" for version in own):
+            if any(version["state"] == "draft" and not version.get("deleted_at") for version in own):
                 raise V2Error("STATE_CONFLICT", "本量表已有草稿")
-            return self.describe(self.put("rubric_versions", {**source, "id": str(uuid4()), "state": "draft", "revision": 1,
+            return self.describe(self.put("rubric_versions", {**source, "id": str(uuid4()), "state": "draft", "revision": 1, "archived": False,
                                  "version_no": max(version["version_no"] for version in own) + 1, "content_hash": None, "created_at": now()}))
 
-    @staticmethod
-    def describe(version):
-        return {**version, **definition_check(version["definition"])[1]}
+    def describe(self, version):
+        rubric = self.get("rubrics", version["rubric_id"])
+        return {**version, "archived": bool(version.get("archived")), "rubric_archived": bool(rubric.get("archived")),
+                "rubric_revision": rubric.get("revision", 1), **definition_check(version["definition"])[1]}
 
     @staticmethod
     def revision(obj, expected, draft=True):
@@ -127,6 +174,7 @@ class RubricService:
         definition, _ = definition_check(definition)
         with self.store.transaction():
             obj = self.get("rubric_versions", identifier)
+            self.require_active(obj)
             self.revision(obj, expected)
             obj.update(definition=definition, revision=expected + 1)
             return self.describe(self.put("rubric_versions", obj))
@@ -134,6 +182,7 @@ class RubricService:
     def publish_version(self, identifier, expected):
         with self.store.transaction():
             obj = self.get("rubric_versions", identifier)
+            self.require_active(obj)
             self.revision(obj, expected, draft=False)
             definition, check = definition_check(obj["definition"])
             if not check["publishable"]:
@@ -144,7 +193,10 @@ class RubricService:
     def assignment(self, body, identifier=None):
         self.nonblank(body["title"], body["instructions"])
         with self.store.transaction():
-            self.get("rubric_versions", body["rubric_version_id"])
+            version = self.get("rubric_versions", body["rubric_version_id"])
+            existing = self.get("assignments", identifier) if identifier else None
+            if not existing or existing["rubric_version_id"] != version["id"]:
+                self.require_active(version)
             if identifier:
                 obj = self.get("assignments", identifier)
                 self.revision(obj, body["expected_revision"])
@@ -162,6 +214,8 @@ class RubricService:
             version = self.get("rubric_versions", obj["rubric_version_id"])
             if version["state"] != "published":
                 raise V2Error("RUBRIC_NOT_PUBLISHED", "请先发布量表")
+            if obj["state"] != "published":
+                self.require_active(version)
             obj["state"] = "published"
             obj["context_hash"] = self.context(obj, version)["context_hash"]
             return self.put("assignments", obj)

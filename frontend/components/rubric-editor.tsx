@@ -6,7 +6,7 @@ export function RubricEditor({ version, definition, onChange, onSave, onPublish,
   version: RubricVersion; definition: Definition; onChange: (body: Definition) => void;
   onSave: () => void; onPublish: () => void; onExample: () => void; busy: boolean;
 }) {
-  const readOnly = version.state === "published" || busy;
+  const readOnly = version.state === "published" || version.archived || version.rubric_archived || busy;
   function dimension(index: number, key: string, value: string) {
     onChange({ ...definition, dimensions: definition.dimensions.map((row, i) => i === index ? { ...row, [key]: value } : row) });
   }
@@ -48,7 +48,7 @@ export function RubricEditor({ version, definition, onChange, onSave, onPublish,
     <div className="v2-validation" aria-live="polite">最近保存的服务端合计：<strong>{version.total_score} / 100.00</strong> · {version.publishable ? "可发布" : "请完善配置"}
       {version.field_errors?.map((error, i) => <p key={i}>{error.field}：{error.message}</p>)}
     </div>
-    {version.state === "draft" && <button type="button" className="v2-primary" disabled={busy || !version.publishable} onClick={onPublish}>保存当前配置并发布</button>}
+    {version.state === "draft" && <button type="button" className="v2-primary" disabled={readOnly || !version.publishable} onClick={onPublish}>保存当前配置并发布</button>}
     {version.state === "published" && <p>修改标准请使用“复制为新版本”。已有任务仍使用原快照。</p>}
   </section>;
 }

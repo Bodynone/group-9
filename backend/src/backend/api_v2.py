@@ -1,4 +1,4 @@
-"""The 25 versioned routes; legacy contracts remain available unchanged."""
+"""Versioned teacher workflows; legacy contracts remain available unchanged."""
 
 from fastapi import APIRouter, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
@@ -44,8 +44,28 @@ def install(app, service, runner):
         return service.new_rubric(body.title, body.source_version_id)
 
     @router.get("/rubrics")
-    def rubrics(limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0)):
-        return service.list("rubrics", limit, offset)
+    def rubrics(limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0), include_archived: bool = False):
+        return service.list("rubrics", limit, offset, include_archived=include_archived)
+
+    @router.post("/rubrics/{identifier}/archive")
+    def archive_rubric(identifier: str, body: Revision):
+        return service.lifecycle(identifier, body.expected_revision, True, series=True)
+
+    @router.post("/rubrics/{identifier}/restore")
+    def restore_rubric(identifier: str, body: Revision):
+        return service.lifecycle(identifier, body.expected_revision, False, series=True)
+
+    @router.post("/rubric-versions/{identifier}/archive")
+    def archive_version(identifier: str, body: Revision):
+        return service.lifecycle(identifier, body.expected_revision, True)
+
+    @router.post("/rubric-versions/{identifier}/restore")
+    def restore_version(identifier: str, body: Revision):
+        return service.lifecycle(identifier, body.expected_revision, False)
+
+    @router.delete("/rubric-versions/{identifier}")
+    def delete_draft(identifier: str, body: Revision):
+        return service.delete_draft(identifier, body.expected_revision)
 
     @router.post("/rubrics/{identifier}/versions", status_code=201)
     def copy(identifier: str, body: VersionCopy):
