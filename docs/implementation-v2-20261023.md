@@ -6,11 +6,11 @@
 
 | 原分工范围 | 本轮集成结果 | 主要代码 |
 |---|---|---|
-| 配置存储与 API | 25 条 v2 接口；课程、量表草稿、发布/复制版本、作业绑定；修订号冲突与幂等提交 | `schemas_v2.py`、`rubric_service.py`、`api_v2.py` |
+| 配置存储与 API | 31 条 v2 接口；课程、量表草稿、发布/复制版本、作业绑定；修订号冲突与幂等提交 | `schemas_v2.py`、`rubric_service.py`、`api_v2.py` |
 | 动态引擎与工具 | 1–12 维、2–8 档；逐项 Decimal ROUND_HALF_UP 后累加；版本与逐字证据校验；实际定位来源及有限修正 | `tools_v2.py`、`agent_v2.py` |
 | 模型入口 | 旧与新流程共享 Provider；实际请求上限 3；429 最多 5 次、6/12/18/24 秒退避，退避释放请求锁；记录可观察的重试次数 | `provider.py`、`agent.py`、`agent_v2.py` |
-| 教师前端 | `/v2`：课程、结构化量表编辑、作业草稿与发布、单份/批量、动态逐项复核、证据定位、确认归档和 JSON | `rubric-editor.tsx`、`assignment-manager.tsx`、`course-workspace.tsx` |
-| 批量与学情 | 同作业、同版本；失败隔离与关联重试；确认统计默认、临时预览明示；1–2 维条形、3–12 维原生 SVG 雷达 | `rubric_service.py`、`course-workspace.tsx` |
+| 教师前端 | `/`与`/v2`统一作业入口；独立标准库，任务内设置、提交复核、结果学情；含历史记录、标准生命周期、确认JSON | `teacher-workspace.tsx`、`standards-library.tsx`、`task-settings.tsx`、`assignment-detail.tsx` |
+| 批量与学情 | 同作业、同版本；失败隔离与关联重试；确认统计默认、临时预览明示；1–2 维条形、3–12 维原生 SVG 雷达 | `rubric_service.py`、`assignment-detail.tsx` |
 | 成绩导出 | 只含已确认记录；部分确认明确排除数；空确认 409；动态列、UTF-8 BOM、CSV 转义和公式防护 | `rubric_service.py`、`api_v2.py` |
 | 迁移与兼容 | 首次迁移前一致性备份；新增侧表绑定历史快照；不批量重写旧 tasks/records；旧待复核任务可通过 v2 适配器继续复核 | `migration.py`、`rubric_service.py` |
 | 评测准备 | 三类课程各 12 份合成文本；示例量表与逐份哈希；三条件执行器；两位独立评阅及裁定门禁 | `samples/v2-benchmark/`、`prepare_v2_benchmark.py`、`ablation_study_v2.py` |
@@ -19,7 +19,7 @@
 
 ## 对 10 月 20 日设计的兼容调整
 
-1. 保留已合并到 main 的旧单份和 `/api/batch/*` 功能及协议。新能力使用 `/api/v2/*`；前端在旧工作台提供入口，原页面仍可使用。
+1. 保留已合并到 main 的旧单份和 `/api/batch/*` 功能及协议。新能力使用 `/api/v2/*`；首页与`/v2`统一为作业任务，原固定量表工作台保留于`/legacy`，详情见[统一工作台记录](unified-workspace-20261023.md)。
 2. 保留两套明确的默认快照：`af-2026-10-09-v1` 为 15/20/30/15/10/10，`2026-v1` 为 15/25/25/15/10/10。新建量表默认复制前者，旧接口仍使用后者。旧分数不重算，不把 S2=70 和 S2=75 混成同一量表结果。
 3. 当前仓库已经存在 v1 的 `batches/batch_items`。为避免破坏旧批次，v2 使用 `v2_batches/v2_batch_items`，其他新增表仍按设计命名。版本化上下文通过 `task_contexts` 与旧 `tasks` 关联，确认记录继续写入 `records`。
 4. 动态引擎、工具与前端类型独立为 `agent_v2.py`、`tools_v2.py`、`grading-v2.ts`，旧实现继续作为兼容路径。两者共享原文定位原则、同一个 Provider 与运行任务限制。
@@ -27,7 +27,7 @@
 
 ## 验收口径
 
-本轮 Python 3.13.2 后端 **257/257** 通过；前端 TypeScript、ESLint、webpack 生产构建通过。浏览器验收通过旧单份流程、旧批量真实API集成，以及新版配置/四维复核/版本/批量/确认导出/移动端流程；另核验1维、2维条形和12维原生SVG雷达。三类真实模型运行共取得3份有效待复核草稿，首轮两个失败及随后重试如实记录。36份基准的人工裁定数量为 **0/36**。
+本轮 Python 3.13.2 后端 **271/271** 通过；前端 TypeScript、ESLint、webpack 生产构建通过。浏览器验收通过旧单份流程、旧批量真实API集成，以及新版配置/四维复核/版本/批量/确认导出/移动端流程；另核验1维、2维条形和12维原生SVG雷达。三类真实模型运行共取得3份有效待复核草稿，首轮两个失败及随后重试如实记录。36份基准的人工裁定数量为 **0/36**。
 
 自动化验证使用测试模型替身，只检验协议与业务流程。包括配置/非法输入、1/2/4/12维、逐项舍入、旧修订号、版本只读、幂等、迁移前后旧JSON、真实工具来源、有限修正、并发、原文BOM/换行/emoji、失败隔离、确认/临时统计、公式防护与确认成绩导出。原有后端测试继续全部纳入。
 
@@ -57,4 +57,4 @@ pnpm --dir frontend build --webpack
 uv run --project backend python backend/scripts/ablation_study_v2.py --check
 ```
 
-启动后端与前端后访问 `/v2`。浏览器验收使用 `backend/tests/ui_server.py`、独立测试库和 `frontend/tests/v2-e2e.mjs`，不要将测试模型用于正式 Demo。真实模型验证草稿保留待复核，只有教师主动确认后才进入确认统计与 CSV。
+启动后端与前端后访问 `/`（`/v2`为相同工作台，旧版入口为`/legacy`）。浏览器验收使用 `backend/tests/ui_server.py`、独立测试库和 `frontend/tests/v2-e2e.mjs`，不要将测试模型用于正式 Demo。真实模型验证草稿保留待复核，只有教师主动确认后才进入确认统计与 CSV。

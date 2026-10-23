@@ -116,6 +116,10 @@ def install(app, service, runner):
     def get_task(identifier: str):
         return service.task(identifier)
 
+    @router.get("/tasks")
+    def submissions(assignment_id: str | None = None, limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0)):
+        return service.submissions(assignment_id, limit, offset)
+
     @router.patch("/tasks/{identifier}/review")
     def review(identifier: str, body: ReviewUpdate):
         return service.review(identifier, body.model_dump())

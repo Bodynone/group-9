@@ -2,16 +2,16 @@
 
 import type { Definition, RubricVersion } from "@/lib/grading-v2";
 
-export function RubricEditor({ version, definition, onChange, onSave, onPublish, onExample, busy }: {
+export function RubricEditor({ version, definition, onChange, onSave, onPublish, onExample, busy, dirty = false }: {
   version: RubricVersion; definition: Definition; onChange: (body: Definition) => void;
-  onSave: () => void; onPublish: () => void; onExample: () => void; busy: boolean;
+  onSave: () => void; onPublish: () => void; onExample: () => void; busy: boolean; dirty?: boolean;
 }) {
   const readOnly = version.state === "published" || version.archived || version.rubric_archived || busy;
   function dimension(index: number, key: string, value: string) {
     onChange({ ...definition, dimensions: definition.dimensions.map((row, i) => i === index ? { ...row, [key]: value } : row) });
   }
   return <section className="v2-card" aria-label="评分量表编辑器">
-    <div className="v2-section-title"><h2>2. 配置评分量表</h2><span>{version.state === "published" ? "已发布 · 只读" : "草稿"} · 第 {version.version_no} 版</span></div>
+    <div className="v2-section-title"><h2>评分标准配置</h2><span>{version.state === "published" ? "已发布 · 只读" : "草稿"} · 第 {version.version_no} 版</span></div>
     <p>配置 1–12 个维度、2–8 个统一档位。合计与评分均由后端计算，发布后永久只读。</p>
     <details open={version.state === "draft"}><summary>查看维度、档位与逐项判据（{definition.dimensions.length} 维）</summary><fieldset disabled={readOnly}>
       <label>量表标题<input value={definition.title} onChange={e => onChange({ ...definition, title: e.target.value })} /></label>
@@ -48,7 +48,8 @@ export function RubricEditor({ version, definition, onChange, onSave, onPublish,
     <div className="v2-validation" aria-live="polite">最近保存的服务端合计：<strong>{version.total_score} / 100.00</strong> · {version.publishable ? "可发布" : "请完善配置"}
       {version.field_errors?.map((error, i) => <p key={i}>{error.field}：{error.message}</p>)}
     </div>
-    {version.state === "draft" && <button type="button" className="v2-primary" disabled={readOnly || !version.publishable} onClick={onPublish}>保存当前配置并发布</button>}
+    {dirty && <p>有未保存修改，请先保存并校验。右侧预览随编辑更新，分值合计由后端返回。</p>}
+    {version.state === "draft" && <button type="button" className="v2-primary" disabled={readOnly || dirty || !version.publishable} onClick={onPublish}>预览并发布标准</button>}
     {version.state === "published" && <p>修改标准请使用“复制为新版本”。已有任务仍使用原快照。</p>}
   </section>;
 }

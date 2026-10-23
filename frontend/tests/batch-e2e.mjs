@@ -79,7 +79,7 @@ async function noOverflow(label) {
 }
 
 try {
-  await page.goto(baseUrl);
+  await page.goto(new URL("/legacy", baseUrl).href);
   await page.locator(".rubric-list details").last().waitFor();
   await page.getByRole("tab", { name: "班级学情大屏" }).click();
   await page.getByRole("heading", { name: "尚未选择批次" }).waitFor();

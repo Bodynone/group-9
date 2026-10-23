@@ -17,6 +17,7 @@ export type Assignment = {
 export type Review = { dimension_id: string; level_id: string | null; score: string | null; reason: string; reviewed: boolean };
 export type Evidence = { quote: string; start: number; end: number; paragraph: number };
 export type TaskV2 = {
+  api_version?: number; replaced_by?: string; parent_task_id?: string;
   id: string; status: "queued" | "running" | "pending_review" | "failed" | "confirmed";
   text: string; submission_label: string; input_version: string; rubric_hash: string; context_hash: string;
   rubric_version_id: string; rubric_snapshot: Definition; assignment_snapshot: { id?: string; course_id?: string; title: string; instructions: string; reference_text: string };
@@ -24,6 +25,11 @@ export type TaskV2 = {
   security_detail?: string; error: null | { code: string; message: string };
   draft: null | { total: string; dimensions: (Review & { evidence: Evidence[]; needs_review: boolean; review_note: string })[] };
   review: null | { total: string | null; dimensions: Review[] };
+};
+export type SubmissionSummary = {
+  id: string; assignment_id: string; submission_label: string; status: TaskV2["status"];
+  total: string | null; created_at: string; rubric_version_id: string;
+  replaced_by: string | null; parent_task_id: string | null; record_id: string | null;
 };
 export type BatchV2 = {
   id: string; name: string; status: string; assignment_id: string; total_count: number; finished_count: number;

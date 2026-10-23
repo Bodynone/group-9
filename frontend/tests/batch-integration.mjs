@@ -17,7 +17,7 @@ const errors = [];
 page.on("pageerror", error => errors.push(error.message));
 
 try {
-  await page.goto(baseUrl);
+  await page.goto(new URL("/legacy", baseUrl).href);
   await page.getByRole("tab", { name: "批量摄取与队列" }).click();
   await page.locator("#batch-name").fill("真实 API 批量集成验收");
   await page.locator("#batch-files").setInputFiles([

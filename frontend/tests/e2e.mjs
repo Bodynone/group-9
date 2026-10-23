@@ -55,7 +55,7 @@ async function checkAll(targetPage) {
 }
 
 try {
-  await page.goto(url);
+  await page.goto(new URL("/legacy", url).href);
   await page.locator(".rubric-list details").last().waitFor();
   assert.equal(await page.locator(".rubric-list details").count(), 6);
   assert.match(await page.locator(".rubric-footer").textContent(), /2026-v1/);
@@ -178,7 +178,7 @@ try {
       await route.fulfill({ status: 202, json: { ...exported.task, id: "regenerated-fixture", parent_id: historicalBase.id, status: "pending_review", record_id: null, review: null } });
     }
   });
-  await historyPage.goto(url);
+  await historyPage.goto(new URL("/legacy", url).href);
   await historyPage.locator(".rubric-list details").last().waitFor();
   for (const status of ["pending_review", "queued", "running", "confirmed", "failed"]) {
     historicalFixture = { ...historicalBase, status, record_id: status === "confirmed" ? historicalBase.record_id : null,
@@ -215,7 +215,7 @@ try {
   const mobilePage = await mobile.newPage();
   mobilePage.setDefaultTimeout(15_000);
   mobilePage.on("pageerror", (error) => errors.push(error.message));
-  await mobilePage.goto(url);
+  await mobilePage.goto(new URL("/legacy", url).href);
   await mobilePage.locator(".rubric-list details").last().waitFor();
   await assertNoOverflow(mobilePage, "mobile empty");
   await start(mobilePage, source);

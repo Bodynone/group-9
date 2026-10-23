@@ -252,6 +252,25 @@ class RubricService:
             return {**task, **context, "submission_label": task.get("submission_label", "历史-" + identifier[:8]),
                     "review_revision": task.get("review_revision", 0)}
 
+    def submissions(self, assignment_id=None, limit=20, offset=0):
+        """Read-only task index; grading JSON and historical exports stay untouched."""
+        with self.store._snapshot():
+            if assignment_id is not None:
+                self.get("assignments", assignment_id)
+            items = []
+            for task_raw, context_raw in self.db.execute(
+                    "SELECT tasks.body,task_contexts.body FROM tasks JOIN task_contexts ON tasks.id=task_contexts.task_id ORDER BY tasks.rowid DESC"):
+                task, context = json.loads(task_raw), json.loads(context_raw)
+                owner = context.get("assignment_id")
+                if owner is None or (assignment_id is not None and owner != assignment_id):
+                    continue
+                grade = task.get("review") or task.get("draft") or {}
+                items.append({"id": task["id"], "assignment_id": owner, "submission_label": task.get("submission_label", task["id"][:8]),
+                              "status": task["status"], "total": grade.get("total"), "created_at": task["created_at"],
+                              "rubric_version_id": context["rubric_version_id"], "replaced_by": task.get("replaced_by"),
+                              "parent_task_id": task.get("parent_id"), "record_id": task.get("record_id")})
+            return {"total": len(items), "items": items[offset:offset + limit]}
+
     def _create_task(self, file, context, parent_id=None):
         self.nonblank(file["submission_label"], file["text"])
         if len(file["text"].encode("utf-8")) > 200000:

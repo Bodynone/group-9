@@ -52,6 +52,52 @@ def review_body(task, reviewed=True):
                                               "reviewed": reviewed} for d in task["rubric_snapshot"]["dimensions"]]}
 
 
+def test_submission_index_is_scoped_paginated_and_read_only(store):
+    service = RubricService(store)
+    _, first = configured(service)
+    _, other = configured(service)
+    one = service.submit({"assignment_id": first["id"], "submission_label": "first", "text": "私有正文一"}, "index-one")
+    two = service.submit({"assignment_id": first["id"], "submission_label": "second", "text": "私有正文二"}, "index-two")
+    third = service.submit({"assignment_id": other["id"], "submission_label": "other", "text": "其他任务正文"}, "index-other")
+    store.create_task("旧固定量表正文仍保留，但不混入新任务索引")
+    before = service.db.total_changes
+    rows = service.submissions(first["id"], limit=1)
+    assert rows["total"] == 2 and [r["id"] for r in rows["items"]] == [two["id"]]
+    assert [r["id"] for r in service.submissions(first["id"], limit=1, offset=1)["items"]] == [one["id"]]
+    assert service.submissions(first["id"], offset=2)["items"] == []
+    assert {r["id"] for r in service.submissions()["items"]} == {one["id"], two["id"], third["id"]}
+    assert not ({"text", "rubric_snapshot", "assignment_snapshot", "draft", "review", "trace"} & rows["items"][0].keys())
+    assert service.db.total_changes == before
+
+
+def test_submission_index_preserves_retry_history_and_confirmed_export(store):
+    service = RubricService(store)
+    _, assignment = configured(service)
+    original = service.submit({"assignment_id": assignment["id"], "submission_label": "retry", "text": "原文证据"}, "index-retry")
+    service.change(original["id"], {"status": "failed"}, "test_failure")
+    retried = service.retry(original["id"], "index-retry-key")
+    service.change(retried["id"], {"status": "failed"}, "test_failure")
+    task = service.manual(retried["id"])
+    task = service.review(task["id"], review_body(task))
+    task = service.confirm(task["id"], versions(task))
+    frozen = store.export_task(task["id"])
+    rows = {r["id"]: r for r in service.submissions(assignment["id"])["items"]}
+    assert rows[original["id"]]["replaced_by"] == task["id"]
+    assert rows[task["id"]]["parent_task_id"] == original["id"]
+    assert rows[task["id"]]["status"] == "confirmed" and rows[task["id"]]["total"] == "70.00"
+    assert rows[task["id"]]["record_id"] == frozen["record_id"]
+    assert store.export_task(task["id"]) == frozen
+
+
+def test_submission_index_api_validates_scope_and_pagination(settings):
+    app = create_app(settings=settings, provider=DynamicTestProvider())
+    with TestClient(app) as client:
+        assert client.get("/api/v2/tasks").json() == {"total": 0, "items": []}
+        assert client.get("/api/v2/tasks?assignment_id=unknown").status_code == 404
+        for query in ("limit=0", "limit=101", "offset=-1"):
+            assert client.get("/api/v2/tasks?" + query).status_code == 422
+
+
 @pytest.mark.parametrize("n", [1, 2, 4, 12])
 def test_dimensions_and_decimal_rounding(store, n):
     service = RubricService(store)
@@ -237,7 +283,7 @@ def test_provider_global_request_budget_and_backoff_release(settings, monkeypatc
 def test_v2_http_validation_routes_and_scheduling(settings, store):
     app = create_app(settings=settings, store=store, provider=DynamicTestProvider())
     with TestClient(app) as client:
-        assert sum(len(operations) for path, operations in app.openapi()["paths"].items() if path.startswith("/api/v2/")) == 30
+        assert sum(len(operations) for path, operations in app.openapi()["paths"].items() if path.startswith("/api/v2/")) == 31
         assert client.post("/api/v2/courses", json={"name": "课程", "unknown": True}).status_code == 422
         course = client.post("/api/v2/courses", json={"name": "课程"}).json()
         draft = client.post("/api/v2/rubrics", json={"title": "标准"}).json()["draft"]

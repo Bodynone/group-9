@@ -17,7 +17,7 @@ await mkdir(resultDir, { recursive: true });
 const marker = randomUUID().slice(0, 8);
 
 async function ready() {
-  await page.waitForFunction(() => [...document.querySelectorAll('button')].some(button => button.textContent === '创建课程' && !button.disabled));
+  await page.locator('.v2-main').waitFor();
 }
 async function get(path) {
   const response = await context.request.get(`${base}/api/v2/${path}`);
@@ -39,14 +39,18 @@ async function tickAll() {
 try {
   const health = await (await context.request.get(`${base}/api/health`)).json();
   assert.equal(health.model, 'scripted-ui-test-provider', 'Use backend/tests/ui_server.py, never a real model for browser acceptance.');
-  await page.goto(`${base}/v2`);
-  await ready();
+  await page.goto(base);
+  await page.getByRole('heading', { name: '作业任务', exact: true }).waitFor();
+  assert.equal(await page.getByLabel('作业正文', { exact: true }).count(), 0);
+  await page.getByText('建立新课程', { exact: true }).click();
   await page.getByLabel('课程名称', { exact: true }).fill(`数据库课程-${marker}`);
   await page.getByRole('button', { name: '创建课程', exact: true }).click();
   await ready();
+  await page.getByRole('button', { name: '评分标准库', exact: true }).click();
+  await page.getByRole('button', { name: '新建评分标准', exact: true }).click();
   await page.getByLabel('新量表名称').fill(`报告标准-${marker}`);
   const createRubric = page.waitForResponse(response => response.url().endsWith('/api/v2/rubrics') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: '新建评分量表', exact: true }).click();
+  await page.getByRole('button', { name: '创建标准草稿', exact: true }).click();
   const rubric = await (await createRubric).json();
   const versionId = rubric.draft.id;
   await page.getByRole('button', { name: '填入四维数据库教学示例' }).click();
@@ -54,12 +58,16 @@ try {
   await page.getByRole('button', { name: '保存并校验' }).click();
   assert.equal((await (await saveRubric).json()).total_score, '100.00');
   await ready();
+  await page.getByRole('button', { name: '预览并发布标准', exact: true }).click();
+  await page.getByRole('dialog', { name: '发布标准前确认' }).waitFor();
   const publishRubric = page.waitForResponse(response => response.url().endsWith(`/rubric-versions/${versionId}/publish`));
-  await page.getByRole('button', { name: '保存当前配置并发布' }).click();
+  await page.getByRole('button', { name: '确认发布标准' }).click();
   assert.equal((await (await publishRubric).json()).state, 'published');
   await ready();
+  await page.getByRole('button', { name: '作业任务', exact: true }).click();
   assert.equal(await page.getByLabel('任务标题', { exact: true }).isVisible(), false, 'New-task form starts collapsed');
   await page.getByText('新建作业任务', { exact: true }).click();
+  await page.getByLabel('所属课程', { exact: true }).selectOption({ label: `数据库课程-${marker}` });
   await page.getByLabel('任务标题', { exact: true }).fill(`查询实验-${marker}`);
   await page.getByLabel('任务要求', { exact: true }).fill('说明关联查询、实验步骤、结果分析与文本规范。不执行SQL。');
   await page.getByLabel('本次任务使用的评分标准').selectOption(versionId);
@@ -67,8 +75,16 @@ try {
   await page.getByRole('button', { name: '保存任务草稿', exact: true }).click();
   const assignment = await (await createAssignment).json();
   await ready();
-  await page.getByRole('button', { name: '发布任务，允许提交学生文本' }).click();
-  await page.getByText('作业已发布，可以提交单份或批量文本。').waitFor();
+  await page.getByRole('tab', { name: '提交与复核', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: '按当前作业标准生成草稿' }).isDisabled(), true);
+  await page.getByRole('tab', { name: '任务设置', exact: true }).click();
+  await page.getByLabel('任务标题', { exact: true }).fill(`查询实验-${marker}-修订`);
+  assert.equal(await page.getByRole('button', { name: '预览并发布任务', exact: true }).isDisabled(), true);
+  await page.getByRole('button', { name: '保存任务修改', exact: true }).click();
+  await page.getByRole('button', { name: '预览并发布任务', exact: true }).click();
+  await page.getByRole('dialog', { name: '发布任务前确认' }).waitFor();
+  await page.getByRole('button', { name: '确认发布任务', exact: true }).click();
+  await page.getByRole('button', { name: '开始提交学生作业' }).click();
   await page.getByLabel('作业正文', { exact: true }).fill('🧪 匿名实验报告\n查询说明：LEFT JOIN保留无选课学生，AVG排除NULL；给定80和100，均分为90。\n实验过程：创建合成数据、查询、分析并说明限制。');
   const createTask = page.waitForResponse(response => response.url().endsWith('/api/v2/tasks') && response.request().method() === 'POST');
   await page.getByRole('button', { name: '按当前作业标准生成草稿' }).click();
@@ -93,6 +109,25 @@ try {
   assert.equal(JSON.parse(originalExport).task.review.total, '88.00');
   await page.screenshot({ path: resolve(resultDir, 'course-single-confirmed.png'), fullPage: true });
   console.log('PASS teacher config, four-dimensional scoring, 88.00 Decimal review, confirmation, codepoint evidence and JSON');
+
+  await page.reload();
+  await page.getByRole('link', { name: '下载确认记录 JSON' }).waitFor();
+  assert.equal(await page.getByRole('region', { name: '本次作业的提交记录' }).locator('tbody tr').count(), 1);
+  await page.getByLabel('作业正文', { exact: true }).fill('尚未提交的文本');
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.getByRole('button', { name: '评分标准库', exact: true }).click();
+  assert.equal(await page.getByLabel('作业正文', { exact: true }).inputValue(), '尚未提交的文本');
+  await page.getByLabel('作业正文', { exact: true }).fill('');
+  await page.getByRole('button', { name: '作业任务', exact: true }).click();
+  const otherResponse = await context.request.post(`${base}/api/v2/assignments`, { data: { course_id: assignment.course_id, title: `隔离任务-${marker}`, instructions: '验证切换任务不会混入旧记录', rubric_version_id: versionId } });
+  const other = await otherResponse.json();
+  await context.request.post(`${base}/api/v2/assignments/${other.id}/publish`, { data: { expected_revision: 1 } });
+  await page.goto(`${base}/v2?assignment=${other.id}&step=grading`);
+  await page.getByRole('heading', { name: '等待选择学生提交', exact: true }).waitFor();
+  assert.equal(await page.getByRole('region', { name: '本次作业的提交记录' }).locator('tbody tr').count(), 0);
+  await page.goto(`${base}/v2?task=${task.id}`);
+  await page.getByRole('link', { name: '下载确认记录 JSON' }).waitFor();
+  console.log('PASS root/v2 unified entry, unpublished guard, persistent single history, dirty guard, deep links and task isolation');
 
   const raw = '\ufeff🧪 原样输入\r\nSQL查询、过程和分析均为匿名合成文本。';
   await page.getByLabel('选择多个文本文件').setInputFiles([
@@ -119,12 +154,14 @@ try {
   await page.getByLabel('统计口径').selectOption('working');
   await page.getByText('临时统计，包含未确认草稿或复核', { exact: false }).waitFor();
   assert.equal((await get(`batches/${batch.id}/analytics?basis=working`)).analyzed, 2);
-  await page.locator('tbody tr').first().getByRole('button', { name: '打开复核' }).click();
+  await page.getByRole('tabpanel', { name: '结果与学情' }).locator('tbody tr').first().getByRole('button', { name: '打开复核' }).click();
   await tickAll();
   const saveFirst = page.waitForResponse(response => response.url().endsWith(`/tasks/${first.id}/review`));
   await page.getByRole('button', { name: '保存复核并重算' }).click();
   await saveFirst;
   await page.getByRole('button', { name: '确认并归档' }).click();
+  await page.getByRole('link', { name: '下载确认记录 JSON' }).waitFor();
+  await page.getByRole('tab', { name: '结果与学情', exact: true }).click();
   await page.getByRole('link', { name: '导出已确认 1 份 CSV（其他提交不导出）' }).waitFor();
   const csv = await context.request.get(`${base}/api/v2/batches/${batch.id}/export-csv`);
   assert.equal(csv.headers()['x-exported-count'], '1');
@@ -139,15 +176,26 @@ try {
   await page.screenshot({ path: resolve(resultDir, 'course-batch-confirmed.png'), fullPage: true });
   console.log('PASS raw BOM/CRLF/emoji hashes, partial batch failure, confirmed/working sources and confirmed-only safe BOM CSV');
 
+  await page.getByRole('button', { name: '评分标准库', exact: true }).click();
+  await page.locator(`tr[data-version-id="${versionId}"]`).getByRole('button').click();
   await page.getByRole('button', { name: '复制为新版本' }).click();
   await page.getByLabel('维度名称', { exact: true }).first().fill('新版本查询标准');
-  await page.getByRole('button', { name: '保存当前配置并发布' }).click();
+  assert.equal(await page.getByRole('button', { name: '预览并发布标准', exact: true }).isDisabled(), true);
+  await page.getByRole('region', { name: '评分标准预览' }).getByRole('cell', { name: '新版本查询标准', exact: true }).waitFor();
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.getByRole('button', { name: '作业任务', exact: true }).click();
+  await page.getByRole('heading', { name: '评分标准库', exact: true }).waitFor();
+  await page.getByRole('button', { name: '保存并校验', exact: true }).click();
+  await page.getByRole('button', { name: '预览并发布标准', exact: true }).click();
+  await page.getByRole('button', { name: '确认发布标准', exact: true }).click();
   await page.getByText('量表已发布，已有任务快照不会随新版本变化。').waitFor();
   assert.equal(await (await context.request.get(`${base}/api/v2/tasks/${task.id}/export`)).text(), originalExport);
   assert.equal((await get(`assignments/${assignment.id}`)).rubric_version_id, versionId);
   console.log('PASS new version never changes prior assignment, task snapshot or immutable export');
 
   async function manage(label) {
+    const more = page.getByText('更多管理操作', { exact: true });
+    if (!(await more.locator('..').getAttribute('open') !== null)) await more.click();
     await page.getByRole('button', { name: label, exact: true }).click();
     const dialog = page.getByRole('alertdialog', { name: '确认量表管理操作' });
     await dialog.getByRole('button', { name: '确认' + label, exact: true }).click();
@@ -157,12 +205,14 @@ try {
   await manage('归档整个量表系列');
   assert.equal((await get(`rubric-versions/${versionId}`)).rubric_archived, true);
   await page.getByLabel('显示已归档量表').uncheck();
-  assert.equal(await page.getByLabel('查看量表版本').locator(`option[value="${versionId}"]`).count(), 0);
+  assert.equal(await page.locator(`tr[data-version-id="${versionId}"]`).count(), 0);
+  await page.getByRole('button', { name: '作业任务', exact: true }).click();
   await page.getByText('新建作业任务', { exact: true }).click();
   assert.equal(await page.getByLabel('本次任务使用的评分标准').locator(`option[value="${versionId}"]`).count(), 0);
   await page.getByText('新建作业任务', { exact: true }).click();
+  await page.getByRole('button', { name: '评分标准库', exact: true }).click();
   await page.getByLabel('显示已归档量表').check();
-  await page.getByLabel('查看量表版本').selectOption(versionId);
+  await page.locator(`tr[data-version-id="${versionId}"]`).getByRole('button').click();
   await ready();
   await manage('恢复整个量表系列');
   await manage('归档当前版本');
@@ -171,17 +221,20 @@ try {
   assert.equal(await (await context.request.get(`${base}/api/v2/tasks/${task.id}/export`)).text(), originalExport);
   assert.equal((await get(`assignments/${assignment.id}`)).rubric_version_id, versionId);
 
+  await page.getByRole('button', { name: '新建评分标准', exact: true }).click();
   await page.getByLabel('新量表名称').fill(`待清理标准-${marker}`);
   const temporaryResponse = page.waitForResponse(r => r.url().endsWith('/api/v2/rubrics') && r.request().method() === 'POST');
-  await page.getByRole('button', { name: '新建评分量表', exact: true }).click();
+  await page.getByRole('button', { name: '创建标准草稿', exact: true }).click();
   const temporary = await (await temporaryResponse).json();
   await ready();
+  const temporaryMore = page.getByText('更多管理操作', { exact: true });
+  if (await temporaryMore.locator('..').getAttribute('open') === null) await temporaryMore.click();
   await page.getByRole('button', { name: '删除当前草稿', exact: true }).click();
   await page.getByRole('button', { name: '取消操作', exact: true }).click();
   assert.equal((await context.request.get(`${base}/api/v2/rubric-versions/${temporary.draft.id}`)).status(), 200);
   await manage('删除当前草稿');
   assert.equal((await context.request.get(`${base}/api/v2/rubric-versions/${temporary.draft.id}`)).status(), 404);
-  assert.equal(await page.getByLabel('查看量表版本').locator(`option[value="${temporary.draft.id}"]`).count(), 0);
+  assert.equal(await page.locator(`tr[data-version-id="${temporary.draft.id}"]`).count(), 0);
   await page.screenshot({ path: resolve(resultDir, 'rubric-lifecycle.png'), fullPage: true });
   console.log('PASS draft deletion/cancel, version/series archive+restore, new-binding filters and immutable history');
 
@@ -202,7 +255,7 @@ try {
     await post(`assignments/${item.id}/publish`, { expected_revision: 1 });
     const fixture = await post('batches', { assignment_id: item.id, name: `chart-${n}-${marker}`, files: [{ filename: 'chart.txt', submission_label: '图表测试', text: '匿名测试文本，模型为脚本替身，不是效果评测。' }] });
     assert.equal((await waitTask(fixture.items[0].task_id)).status, 'pending_review');
-    await page.reload();
+    await page.goto(`${base}/?assignment=${item.id}&step=results`);
     await page.getByLabel('历史批次').selectOption(fixture.id);
     await page.getByLabel('统计口径').selectOption('working');
     await page.getByText('临时统计，包含未确认草稿或复核', { exact: false }).waitFor();
@@ -214,6 +267,32 @@ try {
   }
   console.log('PASS one/two-dimensional bars and twelve-dimensional native SVG radar against real APIs');
 
+  await page.goto(`${base}/v2?task=${task.id}`);
+  await page.getByRole('link', { name: '下载确认记录 JSON' }).waitFor();
+  let releasePoll, pollIssued;
+  const held = new Promise(resolve => { releasePoll = resolve; });
+  const issued = new Promise(resolve => { pollIssued = resolve; });
+  let intercepted = 0;
+  await page.route(`**/api/v2/tasks/${task.id}`, async route => {
+    if (++intercepted === 1) return route.fulfill({ json: { ...task, status: 'running' } });
+    pollIssued();
+    await held;
+    await route.fulfill({ json: task }).catch(() => {});
+  });
+  await page.getByRole('region', { name: '本次作业的提交记录' }).getByRole('row').filter({ hasText: '匿名提交-01' }).getByRole('button', { name: '打开复核' }).click();
+  await Promise.race([issued, new Promise((_, reject) => setTimeout(() => reject(new Error('poll request not issued')), 10000))]);
+  await page.getByRole('button', { name: '作业任务', exact: true }).click();
+  await page.getByRole('row').filter({ hasText: `隔离任务-${marker}` }).getByRole('button', { name: '进入批改', exact: true }).click();
+  releasePoll();
+  await page.unroute(`**/api/v2/tasks/${task.id}`);
+  await page.getByRole('heading', { name: '等待选择学生提交', exact: true }).waitFor();
+  assert.equal(await page.getByRole('region', { name: '动态评分与复核' }).count(), 0);
+  await page.goto(`${base}/?assignment=${other.id}&task=${task.id}`);
+  await page.getByRole('alert').filter({ hasText: '不匹配' }).waitFor();
+  console.log('PASS late polling cannot restore a previous assignment and mismatched task links are rejected');
+
+  await page.goto(`${base}/v2?task=${task.id}`);
+  await page.getByRole('link', { name: '下载确认记录 JSON' }).waitFor();
   for (const width of [390, 768]) {
     await page.setViewportSize({ width, height: 900 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
@@ -221,6 +300,10 @@ try {
   await page.screenshot({ path: resolve(resultDir, 'course-mobile.png'), fullPage: true });
   assert.deepEqual(errors, []);
   console.log('PASS mobile layouts and browser runtime checks');
+} catch (error) {
+  await page.screenshot({ path: resolve(resultDir, 'failure.png'), fullPage: true });
+  console.error(await page.locator('body').innerText());
+  throw error;
 } finally {
   await browser.close();
 }
