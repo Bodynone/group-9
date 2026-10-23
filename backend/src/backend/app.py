@@ -28,15 +28,20 @@ def create_app(settings: Settings | None = None, provider=None, store: Store | N
     from .api_v2 import install
     backup_before_v2(store)
     v2_service = RubricService(store)
+    from .learning import LearningService
+    learning_service = LearningService(v2_service)
     v2_runner = DynamicRunner(v2_service, provider, settings, batch_runner.semaphore)
 
     @asynccontextmanager
     async def lifespan(app):
         store.recover_interrupted()
         v2_service.recover()
+        learning_service.recover()
+        app.state.evaluations.recover()
         try:
             yield
         finally:
+            await app.state.evaluations.close()
             await v2_runner.close()
             await batch_runner.aclose()
             store.recover_interrupted()
@@ -51,7 +56,10 @@ def create_app(settings: Settings | None = None, provider=None, store: Store | N
     app.state.settings = settings
     app.state.v2_service = v2_service
     app.state.v2_runner = v2_runner
+    app.state.learning = learning_service
     install(app, v2_service, v2_runner)
+    from .api_learning import install as install_learning
+    install_learning(app, learning_service, v2_runner, provider)
 
     def get(task_id):
         try:

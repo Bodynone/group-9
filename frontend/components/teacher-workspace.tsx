@@ -10,7 +10,7 @@ import { v2, type Assignment, type Course, type RubricVersion, type SubmissionSu
 
 type Page = "assignments" | "standards" | "detail";
 const emptyForm = { course_id: "", title: "", instructions: "", reference_text: "", rubric_version_id: "" };
-const stepValue = (value: string | null): DetailStep => value === "settings" || value === "results" ? value : "grading";
+const stepValue = (value: string | null): DetailStep => value === "settings" || value === "results" || value === "evaluation" ? value : "grading";
 
 export function TeacherWorkspace() {
   const [page, setPage] = useState<Page>("assignments");

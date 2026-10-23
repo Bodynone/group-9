@@ -1,6 +1,7 @@
 """OpenAI-compatible transport; credentials and reasoning stay server-side."""
 
 import asyncio
+import math
 import re
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
@@ -37,6 +38,21 @@ class ChatProvider:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.semaphore = asyncio.Semaphore(3)
+        if type(settings.max_output_tokens) is not int or not 512 <= settings.max_output_tokens <= 32768:
+            raise ValueError("MODEL_MAX_OUTPUT_TOKENS须为512至32768的整数")
+        if not math.isfinite(settings.min_request_interval) or not 0 <= settings.min_request_interval <= 60:
+            raise ValueError("MODEL_MIN_REQUEST_INTERVAL_SECONDS须为0至60")
+        self.pace_lock = asyncio.Lock()
+        self.last_request_at = None
+
+    async def pace(self):
+        if self.settings.min_request_interval == 0:
+            return
+        async with self.pace_lock:
+            clock = asyncio.get_running_loop().time
+            if self.last_request_at is not None:
+                await asyncio.sleep(max(0, self.settings.min_request_interval - (clock() - self.last_request_at)))
+            self.last_request_at = clock()
 
     def redact(self, message: str) -> str:
         if self.settings.api_key:
@@ -52,11 +68,12 @@ class ChatProvider:
         for attempt in range(5):
             try:
                 async with self.semaphore, httpx.AsyncClient(timeout=self.settings.request_timeout) as client:
+                    await self.pace()
                     response = await client.post(
                         endpoint,
                         headers={"Authorization": "Bearer " + self.settings.api_key},
                         json={"model": self.settings.model, "messages": messages,
-                              **({"tools": tools, "tool_choice": "auto"} if tools else {}), "stream": False, "max_tokens": 8192},
+                              **({"tools": tools, "tool_choice": "auto"} if tools else {}), "stream": False, "max_tokens": self.settings.max_output_tokens},
                     )
                 if response.status_code == 429 and attempt < 4:
                     await asyncio.sleep(6 * (attempt + 1))

@@ -1,0 +1,9 @@
+数据库关联查询实验报告（匿名合成修改稿）
+目标：显示全部学生及选课数，包含没有选课的学生，并分析NULL对聚合的影响。
+数据：students包含学生A和B，enrollments仅包含学生A的两条记录，成绩为80和100；另有一条待录入成绩为NULL。学生B没有选课。
+查询：SELECT s.id, COUNT(e.id) AS course_count, AVG(e.score) AS avg_score FROM students s LEFT JOIN enrollments e ON s.id=e.student_id GROUP BY s.id;
+LEFT JOIN保留左表全部学生，学生B右侧字段为NULL。COUNT(e.id)只计非空匹配主键，学生B的选课数为0；COUNT(*)会把无匹配占位行计为1，因此此处不采用。
+AVG忽略NULL，学生A的80、100和NULL得到平均值90；学生B没有可用成绩，平均值为NULL，不将其转换为0。
+复现过程：在SQLite中建立两表，students.id与enrollments.id为主键，插入上述数据，执行查询并按学生编号排序。预期学生A的非空选课记录数为3，平均90；学生B选课数0，平均NULL。这里提供的是文本说明，实际数据库运行输出仍应由教师核对。
+修改说明：把初稿的INNER JOIN改成LEFT JOIN，区分COUNT(*)与COUNT(e.id)，纠正NULL当0的错误，并补充无匹配学生边界。
+限制：本例为小规模合成数据，尚未覆盖重复选课、外键错误、性能和事务并发，不把文本分析当成代码执行证明。

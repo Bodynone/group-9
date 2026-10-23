@@ -26,7 +26,7 @@ def install(app, service, runner):
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc):
-        if request.url.path.startswith("/api/v2/"):
+        if request.url.path.startswith(("/api/v2/", "/api/v3/")):
             fields = [{"field": ".".join(str(part) for part in err["loc"]), "message": err["msg"]} for err in exc.errors()]
             return JSONResponse({"error": {"code": "INVALID_INPUT", "message": "请求字段不合法", "field_errors": fields}}, status_code=422)
         return await request_validation_exception_handler(request, exc)

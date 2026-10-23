@@ -1,0 +1,93 @@
+/** Learning acceptance in an isolated DB with scripted provider, never real human references. */
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {readFile,mkdir} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {chromium} from 'playwright';
+
+const base=process.env.E2E_BASE_URL||'http://127.0.0.1:13103';
+const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROME_PATH?{executablePath:process.env.PLAYWRIGHT_CHROME_PATH}:{})});
+const context=await browser.newContext({viewport:{width:1440,height:1050}}),page=await context.newPage();
+page.setDefaultTimeout(20000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const marker=randomUUID().slice(0,8),resultDir=resolve('test-results/learning');await mkdir(resultDir,{recursive:true});
+async function api(path,method='GET',data,key){const r=await context.request.fetch(base+'/api/'+path,{method,...(data?{data}:{}),...(key?{headers:{'Idempotency-Key':key}}:{})});assert.ok(r.ok(),`${method} ${path}: ${r.status()} ${await r.text()}`);return r.json();}
+async function waitTask(id){for(let i=0;i<100;i++){const t=await api('v2/tasks/'+id);if(!['queued','running'].includes(t.status))return t;await new Promise(r=>setTimeout(r,100));}throw Error('task timeout');}
+async function waitRun(id){for(let i=0;i<100;i++){const r=await api('v3/evaluation-runs/'+id);if(!['queued','running'].includes(r.status))return r;await new Promise(r=>setTimeout(r,100));}throw Error('run timeout');}
+try{
+  assert.equal((await api('health')).model,'scripted-ui-test-provider');
+  const course=await api('v2/courses','POST',{name:'教学增强验收-'+marker});
+  const created=await api('v2/rubrics','POST',{title:'教学增强四维-'+marker});
+  const definition=JSON.parse(await readFile(resolve('../samples/v2-benchmark/rubrics/database.json'),'utf8'));
+  let v=await api('v2/rubric-versions/'+created.draft.id,'PATCH',{expected_revision:1,definition});
+  v=await api('v2/rubric-versions/'+v.id+'/publish','POST',{expected_revision:v.revision});
+  let assignment=await api('v2/assignments','POST',{course_id:course.id,title:'检索与审校验收-'+marker,instructions:'解释SQL LEFT JOIN查询、实验过程、结果和限制。',reference_text:'仅供教师参考',rubric_version_id:v.id});
+  assignment=await api('v2/assignments/'+assignment.id+'/publish','POST',{expected_revision:1});
+  await page.goto(base+'/v2?assignment='+assignment.id+'&step=settings');
+  const settings=page.getByRole('region',{name:'课程资料与批改策略'});
+  await settings.getByText('管理本课程的教学资料',{exact:false}).click();
+  await settings.getByLabel('资料名称',{exact:true}).fill('LEFT JOIN实验讲义');
+  await settings.getByLabel('导入教学资料',{exact:true}).setInputFiles({name:'lesson.md',mimeType:'text/markdown',buffer:Buffer.from('\ufeff🧪 SQL LEFT JOIN保留左表全部记录。\r\nAVG忽略NULL。实验需要展示步骤、分析和边界。')});
+  await settings.getByRole('button',{name:'导入课程资料',exact:true}).click();
+  await settings.getByText('资料已导入。',{exact:false}).waitFor();
+  await settings.getByLabel('按评分维度检索课程资料（BM25）').check();
+  await settings.getByLabel('启用独立审校，优先复核档位分歧').check();
+  await settings.getByRole('button',{name:'保存批改策略'}).click();
+  await settings.getByText('策略已保存',{exact:false}).waitFor();
+  await page.getByRole('tab',{name:'提交与复核',exact:true}).click();
+  const original='\ufeff🧪 SQL LEFT JOIN原始报告\r\n已说明关联查询、过程、结果分析和文本限制。';
+  await page.getByLabel('作业正文',{exact:true}).fill(original);
+  const taskResponse=page.waitForResponse(r=>r.url().endsWith('/api/v2/tasks')&&r.request().method()==='POST');
+  await page.getByRole('button',{name:'按当前作业标准生成草稿'}).click();
+  let task=await (await taskResponse).json();task=await waitTask(task.id);assert.equal(task.status,'pending_review');
+  const review=page.getByRole('region',{name:'动态评分与复核'}), learning=page.getByRole('region',{name:'审校与学习改进'});
+  await learning.getByText('1项档位分歧',{exact:false}).waitFor();
+  await learning.getByText('查看课程资料检索依据',{exact:false}).click();
+  await learning.getByRole('button',{name:'定位课程资料'}).first().click();
+  assert.ok((await learning.locator('mark').textContent()).includes('LEFT JOIN'));
+  await learning.getByRole('button',{name:'关闭资料定位'}).click();
+  await review.getByLabel('评分档位').first().selectOption('basic');
+  for(const box of await review.getByRole('checkbox').all())await box.check();
+  await review.getByRole('button',{name:'保存复核并重算'}).click();
+  await page.getByText('复核已保存',{exact:false}).waitFor();
+  await review.getByRole('button',{name:'确认并归档'}).click();
+  await page.getByRole('alert').filter({hasText:'请先保存复核，再记录'}).waitFor();
+  await learning.getByLabel('审校处理说明').fill('自动化测试：教师输入替身，核对后采用基本达成档。');
+  await learning.getByRole('button',{name:'保存审校处理说明'}).click();
+  await learning.getByText('审校处理已保存',{exact:false}).waitFor();
+  await review.getByRole('button',{name:'确认并归档'}).click();
+  await page.getByRole('link',{name:'下载确认记录 JSON'}).waitFor();
+  const frozen=JSON.stringify(await api('v2/tasks/'+task.id+'/export'));
+  await learning.getByText('导入修改稿，比较两次提交',{exact:true}).click();
+  await learning.getByLabel('修改稿正文').fill(original+'\n修改后补充：空值聚合、无匹配记录与事务边界。');
+  const revisionResponse=page.waitForResponse(r=>r.url().endsWith(`/tasks/${task.id}/revisions`));
+  await learning.getByRole('button',{name:'提交修改稿并生成草稿'}).click();
+  let revision=await (await revisionResponse).json();revision=await waitTask(revision.id);
+  await learning.getByRole('heading',{name:'第2稿与上一稿对比'}).waitFor();
+  await review.getByText('最近保存总分：',{exact:false}).waitFor();
+  assert.equal((await api('v3/tasks/'+revision.id+'/comparison')).total_delta,'12.00');
+  assert.equal(JSON.stringify(await api('v2/tasks/'+task.id+'/export')),frozen);
+  await page.screenshot({path:resolve(resultDir,'revision-and-audit.png'),fullPage:true});
+  console.log('PASS material import, frozen retrieval, blind audit, confirmation gate, revision comparison and immutable original');
+  await page.getByRole('tab',{name:'结果与学情',exact:true}).click();
+  await page.getByRole('region',{name:'争议队列与运行分析'}).getByRole('button',{name:'处理本份争议'}).waitFor();
+  await page.getByRole('tab',{name:'教学评测',exact:true}).click();
+  const evaluation=page.getByRole('region',{name:'教学评测中心'});
+  await evaluation.getByText('新建评测集',{exact:true}).click();await evaluation.getByLabel('评测集名称').fill('隔离流程验证-'+marker);
+  await evaluation.getByRole('button',{name:'建立评测集并冻结资料'}).click();
+  await evaluation.getByLabel('加入本作业的提交').selectOption(task.id);
+  await evaluation.getByRole('button',{name:'加入评测样本'}).click();
+  await evaluation.getByRole('button',{name:'独立评分',exact:true}).waitFor();
+  assert.equal(await evaluation.getByRole('button',{name:'运行四条件对比'}).isDisabled(),true);
+  async function label(id,adjudicate=false){await evaluation.getByRole('button',{name:adjudicate?'裁定参考':'独立评分',exact:true}).click();await evaluation.getByLabel('实际人工评阅者编号').fill(id);await evaluation.getByLabel('人工参考档位').first().waitFor();const selects=await evaluation.getByLabel('人工参考档位').all();assert.equal(selects.length,4);for(const select of selects)await select.selectOption('basic');await evaluation.getByLabel('评分或裁定依据').fill('自动化测试中的输入占位，不是真实人工评测，也不进入成果准确率。');await evaluation.getByLabel('我确认以上由实际人工评阅者填写',{exact:false}).check();await evaluation.getByRole('button',{name:'提交人工记录'}).click();await evaluation.getByText('人工记录已保存。',{exact:true}).waitFor();}
+  await label('test-a');assert.equal(await evaluation.getByRole('button',{name:'裁定参考'}).isDisabled(),true);await label('test-b');await label('test-adjudicator',true);
+  page.once('dialog',d=>d.accept());const runResponse=page.waitForResponse(r=>r.url().endsWith('/runs')&&r.request().method()==='POST');await evaluation.getByRole('button',{name:'运行四条件对比'}).click();let experiment=await(await runResponse).json();experiment=await waitRun(experiment.id);
+  assert.equal(experiment.status,'completed');assert.equal(experiment.rows.length,4);assert.ok(experiment.rows.every(r=>r.success));
+  await evaluation.getByRole('heading',{name:'实验状态：completed'}).waitFor();
+  await evaluation.getByText('逐次运行记录与人工证据核查',{exact:true}).click();await evaluation.getByRole('button',{name:'核查本次输出证据'}).first().click();await evaluation.getByLabel('核查结果').selectOption('false');await evaluation.getByLabel('证据核查者').fill('test-evidence');await evaluation.getByLabel('核查依据',{exact:true}).fill('自动化输入占位，非真实人工结论。');await evaluation.getByRole('button',{name:'保存人工证据核查'}).click();
+  await page.screenshot({path:resolve(resultDir,'evaluation-results.png'),fullPage:true});
+  await page.reload();await evaluation.getByRole('heading',{name:'教学评测中心'}).waitFor();
+  assert.equal(errors.length,0,errors.join('\n'));
+  await page.setViewportSize({width:390,height:844});await page.screenshot({path:resolve(resultDir,'mobile.png'),fullPage:true});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),'mobile page horizontal overflow');
+  console.log('PASS human-reference gate, four isolated conditions, output evidence review, reload and mobile layout');
+}catch(error){await page.screenshot({path:resolve(resultDir,'failure.png'),fullPage:true});throw error;}finally{await browser.close();}

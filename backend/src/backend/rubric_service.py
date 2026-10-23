@@ -33,6 +33,7 @@ class RubricService:
     def __init__(self, store: Store):
         self.store = store
         self.db = store._connection
+        self.learning = None
         with store.transaction():
             for table in ("courses", "rubrics", "rubric_versions", "assignments", "v2_batches"):
                 self.db.execute(f"CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY, body TEXT NOT NULL)")
@@ -301,6 +302,10 @@ class RubricService:
             if assignment["state"] != "published":
                 raise V2Error("ASSIGNMENT_NOT_PUBLISHED", "请先发布作业")
             context = self.context(assignment, self.get("rubric_versions", assignment["rubric_version_id"]))
+            if self.learning:
+                snapshot = self.learning.freeze(assignment)
+                if snapshot:
+                    context["learning_snapshot"] = snapshot
             if not batch:
                 return self._create_task(body, context)["id"]
             self.nonblank(body["name"])
@@ -375,6 +380,8 @@ class RubricService:
             if task["status"] == "confirmed":
                 return task
             self._writable(task)
+            if self.learning:
+                self.learning.confirm_gate(task)
             review = task.get("review")
             if task["status"] != "pending_review" or not review or not all(d.get("reviewed") is True for d in review["dimensions"]):
                 raise V2Error("STATE_CONFLICT", "须先保存所有维度的完整复核再确认")
@@ -387,6 +394,8 @@ class RubricService:
             self.store._append_trace(original, "confirmed", details={"record_id": original["record_id"]})
             self.store._save(original)
             record = {"record_id": original["record_id"], "confirmed_at": original["updated_at"], "task": self.task(identifier)}
+            if self.learning and task.get("learning_snapshot"):
+                record["learning"] = self.learning.detail(identifier)
             self.db.execute("INSERT INTO records VALUES (?,?,?)", (record["record_id"], identifier, canonical(record)))
         return self.task(identifier)
 
@@ -402,6 +411,8 @@ class RubricService:
                 for d in task["rubric_snapshot"]["dimensions"]]})
             self.store._append_trace(original, "manual_takeover")
             self.store._save(original)
+            if self.learning:
+                self.learning.manual_audit(task)
         return self.task(identifier)
 
     def retry(self, identifier, key):
@@ -411,7 +422,13 @@ class RubricService:
             if task["status"] != "failed":
                 raise V2Error("STATE_CONFLICT", "仅失败任务可以重试")
             context = {k: task[k] for k in ("assignment_id", "rubric_version_id", "rubric_hash", "context_hash", "rubric_snapshot", "assignment_snapshot")}
+            if task.get("learning_snapshot"):
+                context["learning_snapshot"] = task["learning_snapshot"]
             new = self._create_task(task, context, identifier)
+            if self.learning:
+                link = self.learning.optional("learning_revisions", identifier)
+                if link:
+                    self.put("learning_revisions", {**link, "id": new["id"]})
             if "filename" in task:
                 new["filename"] = task["filename"]
                 self.store._save(new)

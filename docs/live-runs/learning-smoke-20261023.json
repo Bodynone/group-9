@@ -1,0 +1,110 @@
+{
+  "synthetic": true,
+  "model": "deepseek-v4-flash",
+  "assignment_id": "fb655e5e-3a36-49b6-8f78-823b0270c11b",
+  "course_id": "daa43ea9-ebe0-4a79-ad08-9369b8053372",
+  "human_references_created": 0,
+  "grades_confirmed": 0,
+  "quality_evaluation": false,
+  "tasks": [
+    {
+      "id": "7a1f64fa-a637-41a9-92fb-968a406e01c6",
+      "input_version": "a5e516c2573dbf7a8884465ef063ef285f7af557e1414cd63ce2b5e871a6a83e",
+      "status": "failed",
+      "error": {
+        "code": "model_http_429",
+        "message": "模型调用失败：inference exceeds tpm/rpm limit"
+      },
+      "draft_total": null,
+      "model_calls": 5,
+      "retrieval_count": 4,
+      "retrieval_matches": 4,
+      "audit_status": null,
+      "disputed_count": null,
+      "url": "http://127.0.0.1:3000/v2?task=7a1f64fa-a637-41a9-92fb-968a406e01c6",
+      "attempt_configuration": {
+        "max_output_tokens": 8192,
+        "min_request_interval": 0,
+        "retrieval_strategy": "model_queries"
+      }
+    },
+    {
+      "id": "2f94e828-09ff-458e-b5b8-96fa4cd42fc5",
+      "input_version": "a5e516c2573dbf7a8884465ef063ef285f7af557e1414cd63ce2b5e871a6a83e",
+      "status": "failed",
+      "error": {
+        "code": "model_http_429",
+        "message": "模型调用失败：inference exceeds tpm/rpm limit"
+      },
+      "draft_total": null,
+      "model_calls": 5,
+      "retrieval_count": 8,
+      "retrieval_matches": 8,
+      "audit_status": null,
+      "disputed_count": null,
+      "url": "http://127.0.0.1:3000/v2?task=2f94e828-09ff-458e-b5b8-96fa4cd42fc5",
+      "attempt_configuration": {
+        "max_output_tokens": 8192,
+        "min_request_interval": 0,
+        "retrieval_strategy": "bootstrap"
+      }
+    },
+    {
+      "id": "bd19f8de-f791-4cd0-b3e9-c768c201a6fd",
+      "input_version": "a5e516c2573dbf7a8884465ef063ef285f7af557e1414cd63ce2b5e871a6a83e",
+      "status": "failed",
+      "error": {
+        "code": "model_http_429",
+        "message": "模型调用失败：inference exceeds tpm/rpm limit"
+      },
+      "draft_total": null,
+      "model_calls": 2,
+      "retrieval_count": 4,
+      "retrieval_matches": 4,
+      "audit_status": null,
+      "disputed_count": null,
+      "url": "http://127.0.0.1:3000/v2?task=bd19f8de-f791-4cd0-b3e9-c768c201a6fd",
+      "attempt_configuration": {
+        "max_output_tokens": 4096,
+        "min_request_interval": 20,
+        "retrieval_strategy": "bootstrap"
+      }
+    },
+    {
+      "id": "62200985-56a7-4b96-9f45-dc7ea94c855f",
+      "input_version": "a5e516c2573dbf7a8884465ef063ef285f7af557e1414cd63ce2b5e871a6a83e",
+      "status": "failed",
+      "error": {
+        "code": "model_http_429",
+        "message": "模型调用失败：inference exceeds tpm/rpm limit"
+      },
+      "draft_total": null,
+      "model_calls": 2,
+      "retrieval_count": 4,
+      "retrieval_matches": 4,
+      "audit_status": null,
+      "disputed_count": null,
+      "url": "http://127.0.0.1:3000/v2?task=62200985-56a7-4b96-9f45-dc7ea94c855f",
+      "attempt_configuration": {
+        "max_output_tokens": 3072,
+        "min_request_interval": 40,
+        "retrieval_strategy": "bootstrap_deduplicated"
+      }
+    }
+  ],
+  "result": "blocked_by_provider_tpm_rpm_limit",
+  "real_end_to_end_verified": false,
+  "unverified": [
+    "real independent audit",
+    "real revision workflow",
+    "grading quality",
+    "teacher time saving"
+  ],
+  "source_hashes": {
+    "agent_v2.py": "a2ad459e9e8a5600221cff14382c35ec4d34b9558bf574f807491a18d1e0dff6",
+    "learning.py": "a171628c2a759a6177f9eb52d0d30ee8b513f462911e7535e615dcd918e7cf35",
+    "knowledge.py": "0b709f9e7964c13a19c8c361694742e89f948814c2c2afc584855a4aa0ad5243",
+    "provider.py": "6a34ed75e249ebd564f8262cfdb16e13857de054f89e09764bcb5477f8c9b6f4"
+  },
+  "source_hash_basis": "Final delivered software; historical attempts used the explicitly listed retrieval strategies and runtime budgets."
+}

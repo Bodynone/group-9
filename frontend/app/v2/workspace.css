@@ -37,5 +37,6 @@
 .v2-context p, .v2-editor-heading h2, .v2-page-heading h1 { overflow-wrap: anywhere; }
 .v2-main [hidden] { display: none !important; }
 .v2-card tr.is-current { background: #eef4e6; }
+.v2-card small{display:block;color:#6b7f8c;margin-top:5px}.learning-source,.learning-label{padding:18px;margin:18px 0;border:1px solid #cbd8c4;border-radius:10px;background:#f8faf6}.learning-evidence{padding:10px 0;border-bottom:1px solid #dde5eb}.learning-evidence blockquote{border-left:3px solid #8aa578;padding:5px 16px;margin:12px 0}.learning-before,.learning-after{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;border-radius:6px;font-size:13px;margin:8px 0}.learning-before{background:#fff0e9}.learning-after{background:#edf4e7}.v2-detail-tabs{flex-wrap:wrap}
 @media(max-width: 900px) { .v2-detail-grid { grid-template-columns: 1fr; } .rubric-preview { position: static; } .v2-context { display: block; } .v2-context > p { margin-top: 14px; max-width: none; } .v2-header { position: static; } }
 @media(max-width: 560px) { .v2-header { gap: 12px; } .v2-header nav { order: 3; width: 100%; } .v2-detail-tabs button { padding: 12px 9px; font-size: 13px; } .v2-page-heading h1, .v2-context h1 { font-size: 24px; } .v2-course-filter > details { min-width: 0; width: 100%; } }

@@ -17,17 +17,21 @@ from backend.storage import Store
 
 from scripted_provider import DIMENSIONS, ScriptedProvider, anchors
 from dynamic_provider import DynamicTestProvider
+from learning_provider import LearningTestProvider
 
 
 class UiTestProvider:
     def __init__(self):
         self.dynamic = DynamicTestProvider()
+        self.learning = LearningTestProvider()
         self.providers = {}
         self.failed_inputs = set()
         self.failed_tasks = set()
 
     async def complete(self, messages, tools):
         metadata = json.loads(messages[1]["content"])
+        if metadata.get("role") == "independent_reviewer" or any(t["function"]["name"] == "search_materials" for t in tools):
+            return await self.learning.complete(messages, tools)
         if "rubric_hash" in metadata:
             return await self.dynamic.complete(messages, tools)
         task_id = metadata["task_id"]

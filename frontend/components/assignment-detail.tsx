@@ -2,10 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { TaskSettings } from "@/components/task-settings";
+import { LearningSettings } from "@/components/learning-settings";
+import { LearningReview } from "@/components/learning-review";
+import { LearningResults } from "@/components/learning-results";
+import { LearningEvaluation } from "@/components/learning-evaluation";
 import { v2, versionFields, type AnalyticsV2, type Assignment, type BatchV2, type Evidence, type Review, type RubricVersion, type SubmissionSummary, type TaskV2 } from "@/lib/grading-v2";
 import { allV2 } from "@/lib/workspace-navigation";
 
-export type DetailStep = "settings" | "grading" | "results";
+export type DetailStep = "settings" | "grading" | "results" | "evaluation";
 const statusName: Record<string, string> = { queued: "排队中", running: "正在批改", pending_review: "待教师复核", confirmed: "已确认", failed: "失败", completed: "草稿处理结束", partial_failed: "部分失败" };
 function Chart({ data }: { data: AnalyticsV2 }) {
   const dimensions = data.dimensions;
@@ -35,6 +39,9 @@ export function AssignmentDetail({ assignment: initialAssignment, versions, init
   const [review, setReview] = useState<Review[]>([]);
   const [dirty, setDirty] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
+  const [learningSettingsDirty, setLearningSettingsDirty] = useState(false);
+  const [learningReviewDirty, setLearningReviewDirty] = useState(false);
+  const [evaluationDirty, setEvaluationDirty] = useState(false);
   const [records, setRecords] = useState<SubmissionSummary[]>([]);
   const [showReplaced, setShowReplaced] = useState(false);
   const [batches, setBatches] = useState<Pick<BatchV2, "id" | "name" | "assignment_id">[]>([]);
@@ -56,8 +63,11 @@ export function AssignmentDetail({ assignment: initialAssignment, versions, init
   const fileInput = useRef<HTMLInputElement>(null);
   const pendingKeys = useRef(new Map<string, string>());
   const settingsChanged = useCallback((value: boolean) => setSettingsDirty(value), []);
+  const learningSettingsChanged = useCallback((value: boolean) => setLearningSettingsDirty(value), []);
+  const learningReviewChanged = useCallback((value: boolean) => setLearningReviewDirty(value), []);
+  const evaluationChanged = useCallback((value: boolean) => setEvaluationDirty(value), []);
   useEffect(() => { if (highlight) evidenceMark.current?.scrollIntoView({ block: "center", behavior: "smooth" }); }, [highlight]);
-  useEffect(() => { onDirty(dirty || settingsDirty || !!source.trim() || files.length > 0); return () => onDirty(false); }, [dirty, settingsDirty, source, files, onDirty]);
+  useEffect(() => { onDirty(dirty || settingsDirty || learningSettingsDirty || learningReviewDirty || evaluationDirty || !!source.trim() || files.length > 0); return () => onDirty(false); }, [dirty, settingsDirty, learningSettingsDirty, learningReviewDirty, evaluationDirty, source, files, onDirty]);
   const refresh = useCallback(async () => {
     const [rows, list] = await Promise.all([allV2<SubmissionSummary>(`tasks?assignment_id=${assignment.id}`), allV2<Pick<BatchV2,"id"|"name"|"assignment_id">>(`batches?assignment_id=${assignment.id}`)]);
     if (mounted.current) { setRecords(rows); setBatches(list); }
@@ -105,7 +115,7 @@ export function AssignmentDetail({ assignment: initialAssignment, versions, init
     const result = await v2<T>(path, "POST", body, key); pendingKeys.current.delete(signature); return result;
   }
   async function openRecord(id: string) {
-    if (dirty && !window.confirm("当前复核有未保存修改，放弃修改并打开其他记录？")) return;
+    if ((dirty || learningReviewDirty) && !window.confirm("当前复核或修改稿有未保存修改，放弃修改并打开其他记录？")) return;
     const generation = ++openGeneration.current;
     await act(async () => { const value = await v2<TaskV2>(`tasks/${id}`); if (generation === openGeneration.current) loadTask(value); });
   }
@@ -122,19 +132,20 @@ export function AssignmentDetail({ assignment: initialAssignment, versions, init
   const taskReadOnly = task?.status !== "pending_review" || !!task.replaced_by || busy;
   const text = Array.from(task?.text || "");
   function tabKey(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    const keys: DetailStep[] = ["settings","grading","results"];
-    const next = event.key === "ArrowRight" ? (index+1)%3 : event.key === "ArrowLeft" ? (index+2)%3 : event.key === "Home" ? 0 : event.key === "End" ? 2 : -1;
+    const keys: DetailStep[] = ["settings","grading","results","evaluation"];
+    const next = event.key === "ArrowRight" ? (index+1)%4 : event.key === "ArrowLeft" ? (index+3)%4 : event.key === "Home" ? 0 : event.key === "End" ? 3 : -1;
     if (next >= 0) { event.preventDefault(); go(keys[next]); document.getElementById(`detail-tab-${keys[next]}`)?.focus(); }
   }
   return <>
     <section className="v2-context" aria-label="当前作业上下文"><div><span>{assignment.state === "published" ? "已发布任务" : "任务草稿"}</span><h1>{assignment.title}</h1><p>绑定标准：{bound?.definition.title || assignment.rubric_version_id} · v{bound?.version_no ?? "历史版本"}</p></div>
       <p>所有提交、复核记录和统计均限定在这个作业任务内。标准库中查看其他量表不会改变这里的绑定。</p></section>
-    <nav className="v2-detail-tabs" role="tablist" aria-label="作业任务流程">{([['settings','任务设置'],['grading','提交与复核'],['results','结果与学情']] as const).map(([key,title],i) => <button key={key} role="tab" id={`detail-tab-${key}`} aria-controls={`detail-${key}`} aria-selected={step===key} tabIndex={step===key?0:-1} disabled={busy} onKeyDown={e => tabKey(e,i)} onClick={() => go(key)}>{title}</button>)}</nav>
+    <nav className="v2-detail-tabs" role="tablist" aria-label="作业任务流程">{([['settings','任务设置'],['grading','提交与复核'],['results','结果与学情'],['evaluation','教学评测']] as const).map(([key,title],i) => <button key={key} role="tab" id={`detail-tab-${key}`} aria-controls={`detail-${key}`} aria-selected={step===key} tabIndex={step===key?0:-1} disabled={busy} onKeyDown={e => tabKey(e,i)} onClick={() => go(key)}>{title}</button>)}</nav>
     <div role="status" className="v2-notice">{notice}</div>{error && <p role="alert" className="v2-error">{error}</p>}
     <div role="tabpanel" id="detail-settings" aria-labelledby="detail-tab-settings" hidden={step!=="settings"}>
       <TaskSettings key={`${assignment.id}:${assignment.revision}`} assignment={assignment} versions={versions} busy={busy} onDirty={settingsChanged} onSubmit={() => go("grading")}
         onSave={form => act(async () => { const value = await v2<Assignment>(`assignments/${assignment.id}`,"PATCH",{expected_revision:assignment.revision,title:form.get("title"),instructions:form.get("instructions"),reference_text:form.get("reference_text"),rubric_version_id:form.get("rubric_version_id")}); setAssignment(value); await onChanged(); setNotice("任务修改已保存，可以预览发布。"); })}
         onPublish={() => act(async () => { const value=await v2<Assignment>(`assignments/${assignment.id}/publish`,"POST",{expected_revision:assignment.revision}); setAssignment(value); await onChanged(); setNotice("任务已发布，点击开始提交学生作业。"); })} />
+      <LearningSettings assignment={assignment} onDirty={learningSettingsChanged} />
     </div>
     <div role="tabpanel" id="detail-grading" aria-labelledby="detail-tab-grading" hidden={step!=="grading"}>
       {assignment.state!=="published" && <p className="v2-validation">当前任务尚未发布，请先在任务设置中保存并发布。<button onClick={() => go("settings")}>前往任务设置</button></p>}
@@ -196,6 +207,7 @@ export function AssignmentDetail({ assignment: initialAssignment, versions, init
         </section>}
 
         {!task && <section className="v2-card v2-empty"><h2>等待选择学生提交</h2><p>提交文本后在此生成评分草稿，或从左侧历史记录打开复核。</p></section>}
+        {task && <LearningReview key={task.id} task={task} onOpen={openRecord} reviewDirty={dirty} onCreated={async value=>{loadTask(value);await refresh();}} onDirty={learningReviewChanged} />}
       </div></div>
     </div>
     <div role="tabpanel" id="detail-results" aria-labelledby="detail-tab-results" hidden={step!=="results"}>
@@ -213,6 +225,10 @@ export function AssignmentDetail({ assignment: initialAssignment, versions, init
           </>}
         </section>
       {!batch && <p className="v2-validation">请选择当前作业的一个批次查看统计。单份评分与确认JSON可在“提交与复核”中查看。</p>}
+      {step === "results" && <LearningResults assignmentId={assignment.id} version={`${task?.id}:${task?.status}:${task?.review_revision}:${records.length}`} onOpen={openRecord} />}
+    </div>
+    <div role="tabpanel" id="detail-evaluation" aria-labelledby="detail-tab-evaluation" hidden={step!=="evaluation"}>
+      <LearningEvaluation key={assignment.id} assignment={assignment} records={records} onDirty={evaluationChanged} />
     </div>
   </>;
 }
